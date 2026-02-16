@@ -1,4 +1,5 @@
-import { useOutletContext, Link } from "react-router-dom";
+// src/app/pages/Home.jsx
+import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "@app/providers/AuthProvider";
 
 export default function Home() {
@@ -8,59 +9,79 @@ export default function Home() {
   const clubSlug = club?.slug;
   const isLoggedIn = !!user;
 
-  return (
-    <div className="min-h-screen flex justify-center px-4 py-6">
-      <div className="w-full max-w-xl">
+  const logoSrc =
+    club?.logo_url ??
+    club?.logo ??
+    "/chargers-logo.png"; // Local fallback
 
-        {/* Club Header */}
-        <header className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="h-14 w-14 rounded-full bg-gray-300" />
+  return (
+    <div className="min-h-screen w-full flex justify-center px-4 py-10 bg-surface-alt">
+      <div className="w-full max-w-4xl space-y-12">
+
+        {/* HERO / CLUB HEADER */}
+        <section className="card">
+          <div className="flex items-center gap-6">
+            <img
+              src={logoSrc}
+              alt={`${club?.name ?? "Club"} logo`}
+              className="h-16 w-auto object-contain"
+            />
+
             <div>
-              <h1 className="text-2xl font-semibold">
-                {club?.name || "Club"}
+              <h1 className="text-3xl font-bold text-brand-secondary">
+                {club?.name ?? "Your Club"}
               </h1>
-              <p className="text-gray-600 text-sm">
+              <p className="text-text-muted text-sm mt-1">
                 Your home for racing, events, and community.
               </p>
             </div>
           </div>
 
-          <p className="text-sm text-gray-600">
-            {isLoggedIn ? "Logged in" : "Browsing as guest"}
-          </p>
-        </header>
+          <div className="mt-4 text-sm">
+            {isLoggedIn ? (
+              <span className="text-brand-primary font-medium">
+                You’re logged in
+              </span>
+            ) : (
+              <span className="text-text-muted">
+                Browsing as guest
+              </span>
+            )}
+          </div>
+        </section>
 
-        {/* Club News */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Club News</h2>
-          <div className="border border-gray-200 rounded-md p-4 bg-white shadow-sm">
-            <p className="text-gray-600 text-sm">
-              News will appear here.
+        {/* CLUB NEWS */}
+        <section>
+          <h2 className="section-title">Club News</h2>
+
+          <div className="card">
+            <p className="text-text-muted text-sm">
+              No news posted yet. Stay tuned for updates from the club.
             </p>
           </div>
         </section>
 
-        {/* Next Event */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Next Event</h2>
-          <div className="border border-gray-200 rounded-md p-4 bg-white shadow-sm">
-            <p className="text-gray-600 text-sm">
-              Next event will appear here.
+        {/* NEXT EVENT */}
+        <section>
+          <h2 className="section-title">Next Event</h2>
+
+          <div className="card">
+            <p className="text-text-muted text-sm">
+              The next event will appear here once scheduled.
             </p>
           </div>
         </section>
 
-        {/* Quick Actions */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Quick Actions</h2>
+        {/* QUICK ACTIONS */}
+        <section>
+          <h2 className="section-title">Quick Actions</h2>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
 
             {clubSlug && (
               <Link
                 to={`/${clubSlug}/events`}
-                className="border border-gray-200 rounded-md p-3 text-sm text-center bg-white shadow-sm"
+                className="card card-hover text-center text-sm font-semibold hover:bg-brand-primary/10 hover:text-brand-secondary transition"
               >
                 Events
               </Link>
@@ -69,33 +90,33 @@ export default function Home() {
             {clubSlug && (
               <Link
                 to={`/${clubSlug}/calendar`}
-                className="border border-gray-200 rounded-md p-3 text-sm text-center bg-white shadow-sm"
+                className="card card-hover text-center text-sm font-semibold hover:bg-brand-primary/10 hover:text-brand-secondary transition"
               >
                 Calendar
               </Link>
             )}
 
-            <div className="border border-gray-200 rounded-md p-3 text-sm text-center bg-white shadow-sm opacity-50">
+            <div className="card text-center text-sm text-text-muted shadow-inner">
               Results (members only)
             </div>
 
             {clubSlug && (
               <Link
                 to={`/${clubSlug}/profile/drivers`}
-                className="border border-gray-200 rounded-md p-3 text-sm text-center bg-white shadow-sm"
+                className="card card-hover text-center text-sm font-semibold hover:bg-brand-primary/10 hover:text-brand-secondary transition"
               >
                 Driver Manager
               </Link>
             )}
 
-            <div className="border border-gray-200 rounded-md p-3 text-sm text-center bg-white shadow-sm opacity-50">
+            <div className="card text-center text-sm text-text-muted shadow-inner">
               Setups (members only)
             </div>
 
             {clubSlug && (
               <Link
                 to={`/${clubSlug}/membership`}
-                className="border border-gray-200 rounded-md p-3 text-sm text-center bg-white shadow-sm"
+                className="card card-hover text-center text-sm font-semibold hover:bg-brand-primary/10 hover:text-brand-secondary transition"
               >
                 Membership
               </Link>
@@ -103,20 +124,22 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Auth Links */}
+        {/* AUTH LINKS */}
         {!isLoggedIn && clubSlug && (
-          <section className="mb-6">
-            <h2 className="text-lg font-semibold mb-3">Get Started</h2>
-            <div className="flex flex-col gap-2">
+          <section>
+            <h2 className="section-title">Get Started</h2>
+
+            <div className="flex flex-col gap-3">
               <Link
                 to={`/${clubSlug}/login`}
-                className="w-full text-center py-2 border border-gray-300 rounded-md text-sm bg-white shadow-sm"
+                className="btn-subtle text-center"
               >
                 Member Login
               </Link>
+
               <Link
                 to={`/${clubSlug}/signup`}
-                className="w-full text-center py-2 bg-black text-white rounded-md text-sm shadow-sm"
+                className="btn text-center"
               >
                 Create Account
               </Link>

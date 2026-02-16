@@ -1,118 +1,115 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
-import DriverContext from "@app/providers/DriverContext";
+// src/app/providers/DriverProvider.jsx
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { supabase } from "@/supabaseClient";
+import { useAuth } from "@/app/providers/AuthProvider";
 
-/**
- * DriverProvider (safe wildcard)
- * - Always uses wildcard select to avoid column-mismatch 400s
- * - Mounted guard to avoid setState after unmount
- * - Debounced refresh on realtime events
- * - Minimal public API for consumers
- */
+export const DriverContext = createContext({
+  drivers: [],
+  loadingDrivers: true,
+  refreshDrivers: async () => {},
+  addDriverNumber: async () => {},
+  removeDriverNumber: async () => {},
+});
+
+export function useDrivers() {
+  return useContext(DriverContext);
+}
 
 export default function DriverProvider({ children }) {
+  const { user } = useAuth();
+
   const [drivers, setDrivers] = useState([]);
   const [loadingDrivers, setLoadingDrivers] = useState(true);
 
-  const mountedRef = useRef(false);
-  const lastDataRef = useRef(null);
-  const refreshTimerRef = useRef(null);
-
+  // ------------------------------------------------------------
+  // LOAD DRIVERS
+  // ------------------------------------------------------------
   const loadDrivers = useCallback(async () => {
-    if (!mountedRef.current) return;
+    if (!user?.id) {
+      setDrivers([]);
+      setLoadingDrivers(false);
+      return;
+    }
+
     setLoadingDrivers(true);
 
     try {
-      // Use wildcard select to avoid 42703 errors from missing columns
-      const result = await supabase.from("drivers").select("*");
+      const { data, error } = await supabase
+        .from("driver_numbers")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("number", { ascending: true });
 
-      if (result?.error) {
-        // eslint-disable-next-line no-console
-        console.warn("DriverProvider loadDrivers error", result.error);
-        if (mountedRef.current) {
-          setDrivers([]);
-          setLoadingDrivers(false);
-        }
-        return;
-      }
-
-      const data = result?.data || [];
-
-      // Avoid setting identical data repeatedly
-      const last = lastDataRef.current;
-      const changed =
-        !last ||
-        last.length !== data.length ||
-        data.some((r, i) => r.id !== last[i]?.id);
-
-      if (changed && mountedRef.current) {
-        setDrivers(data);
-        lastDataRef.current = data;
-      }
-
-      if (mountedRef.current) setLoadingDrivers(false);
-      // eslint-disable-next-line no-console
-      console.debug("DriverProvider loadDrivers success", { count: data.length });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("DriverProvider loadDrivers caught", err);
-      if (mountedRef.current) {
+      if (error) {
+        console.warn("DriverProvider loadDrivers error", error);
         setDrivers([]);
-        setLoadingDrivers(false);
+      } else {
+        setDrivers(data || []);
       }
+    } catch (err) {
+      console.error("DriverProvider loadDrivers caught", err);
+      setDrivers([]);
+    } finally {
+      setLoadingDrivers(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
-    mountedRef.current = true;
     loadDrivers();
+  }, [user?.id, loadDrivers]);
 
-    return () => {
-      mountedRef.current = false;
-      if (refreshTimerRef.current) {
-        clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = null;
-      }
-    };
-  }, [loadDrivers]);
+  // ------------------------------------------------------------
+  // ADD DRIVER NUMBER
+  // ------------------------------------------------------------
+  const addDriverNumber = useCallback(
+    async (number) => {
+      if (!user?.id) return { error: "NO_USER" };
 
-  useEffect(() => {
-    // Subscribe to realtime changes and debounce refreshes
-    const channel = supabase
-      .channel("drivers")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "drivers",
-        },
-        (payload) => {
-          // eslint-disable-next-line no-console
-          console.debug("DriverProvider realtime event", {
-            event: payload?.eventType ?? payload?.event,
-            id: payload?.record?.id,
-          });
-
-          if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-          refreshTimerRef.current = setTimeout(() => {
-            if (mountedRef.current) loadDrivers();
-            refreshTimerRef.current = null;
-          }, 150);
-        }
-      )
-      .subscribe();
-
-    return () => {
       try {
-        supabase.removeChannel(channel);
-        channel?.unsubscribe?.();
+        const { error } = await supabase.from("driver_numbers").insert({
+          user_id: user.id,
+          number,
+        });
+
+        if (error) {
+          console.error("addDriverNumber error", error);
+          return { error: "INSERT_FAILED" };
+        }
+
+        await loadDrivers();
+        return { success: true };
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn("DriverProvider cleanup error", err);
+        console.error("addDriverNumber caught", err);
+        return { error: "INSERT_FAILED" };
       }
-    };
-  }, [loadDrivers]);
+    },
+    [user?.id, loadDrivers]
+  );
+
+  // ------------------------------------------------------------
+  // REMOVE DRIVER NUMBER
+  // ------------------------------------------------------------
+  const removeDriverNumber = useCallback(
+    async (id) => {
+      if (!user?.id) return { error: "NO_USER" };
+
+      try {
+        const { error } = await supabase.from("driver_numbers").delete().eq("id", id);
+
+        if (error) {
+          console.error("removeDriverNumber error", error);
+          return { error: "DELETE_FAILED" };
+        }
+
+        await loadDrivers();
+        return { success: true };
+      } catch (err) {
+        console.error("removeDriverNumber caught", err);
+        return { error: "DELETE_FAILED" };
+      }
+    },
+    [user?.id, loadDrivers]
+  );
 
   return (
     <DriverContext.Provider
@@ -120,6 +117,8 @@ export default function DriverProvider({ children }) {
         drivers,
         loadingDrivers,
         refreshDrivers: loadDrivers,
+        addDriverNumber,
+        removeDriverNumber,
       }}
     >
       {children}

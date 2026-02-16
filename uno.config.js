@@ -15,19 +15,19 @@ export default defineConfig({
   theme: {
     colors: {
       brand: {
-        primary: 'var(--brand-primary, #007aff)',
-        secondary: 'var(--brand-secondary, #0051a8)',
-        accent: 'var(--brand-accent, #ff3b30)',
+        primary: 'var(--brand-primary, #0072CE)',
+        secondary: 'var(--brand-secondary, #0A1A2F)',
+        accent: 'var(--brand-accent, #FFC300)',
       },
       surface: {
-        base: 'var(--brand-surface, #ffffff)',
-        alt: 'var(--brand-surface-alt, #f5f7fa)',
+        base: 'var(--brand-surface, #FFFFFF)',
+        alt: 'var(--brand-surface-alt, #F5F7FA)',
       },
       text: {
-        base: 'var(--brand-text, #1a1a1a)',
-        muted: 'var(--brand-text-muted, #6b7280)',
+        base: 'var(--brand-text, #0A1A2F)',
+        muted: 'var(--brand-text-muted, #4B5563)',
       },
-      border: 'var(--brand-border, #e5e7eb)',
+      border: 'var(--brand-border, #E5E7EB)',
     },
 
     spacing: {
@@ -51,25 +51,35 @@ export default defineConfig({
     },
 
     fontFamily: {
-      sans: 'Inter, system-ui, sans-serif',
+      sans: 'Poppins, system-ui, sans-serif',
     },
   },
 
-  safelist: ['input'],
+  safelist: [
+    'input',
+    'bg-[var(--brand-primary)]',
+    'bg-[var(--brand-surface)]',
+    'text-[var(--brand-text)]',
+    'text-[var(--brand-text-muted)]',
+  ],
 
   shortcuts: {
-    'page': 'px-md py-lg bg-surface-base text-text-base',
-    'card': 'bg-surface-base rounded-lg shadow-card p-md border border-border',
+    page: 'px-md py-lg bg-surface-base text-text-base',
+
+    card: 'bg-surface-base rounded-lg shadow-card p-md border border-border',
     'card-hover': 'hover:shadow-cardHover transition-shadow',
-    'btn': 'px-md py-sm rounded-md font-semibold text-white bg-brand-primary active:scale-95 transition-all',
+
+    btn: 'px-md py-sm rounded-md font-semibold text-white bg-brand-primary active:scale-95 transition-all',
     'btn-secondary': 'px-md py-sm rounded-md font-semibold bg-brand-secondary text-white active:scale-95 transition-all',
     'btn-outline': 'px-md py-sm rounded-md font-semibold border border-brand-primary text-brand-primary bg-transparent active:scale-95 transition-all',
     'btn-subtle': 'px-md py-sm rounded-md font-semibold bg-surface-alt text-text-base border border-border active:scale-95 transition-all',
-    'input':
+
+    input:
       'w-full px-md py-md rounded-lg border border-border bg-white text-text-base ' +
       'focus:(border-brand-primary ring-2 ring-brand-primary/20 outline-none) transition-all',
+
     'section-title': 'text-xl font-bold text-text-base mb-sm',
     'nav-item': 'flex flex-col items-center text-sm text-text-muted',
-    'chip': 'px-sm py-xs rounded-full bg-surface-alt text-text-base border border-border',
+    chip: 'px-sm py-xs rounded-full bg-surface-alt text-text-base border border-border',
   },
 })

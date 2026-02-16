@@ -1,3 +1,4 @@
+// src/app/providers/ProfileProvider.jsx
 import { useEffect, useState } from "react";
 import ProfileContext from "@app/providers/ProfileContext";
 import { supabase } from "@/supabaseClient";

@@ -1,87 +1,64 @@
-import React, { useEffect, useState, useContext } from "react";
-import { Outlet, useParams, useLocation } from "react-router-dom";
+// src/app/providers/ClubLayout.jsx
+import { useEffect, useState } from "react";
+import { Outlet, useParams } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
-import ClubContext from "@app/providers/ClubContext";
 
-const DEFAULT_THEME = {
-  textColor: "#ffffff",
-  background: "#0f172a",
-  headerBackground: "#0f172a",
-  headerTextColor: "#ffffff",
-  cardBackground: "#1e293b",
-  cardTextColor: "#ffffff",
-  colors: {
-    primary: "#1E40AF",
-    accent: "#FACC15",
-  },
-  styleVariant: "sport",
-};
+import ThemeProvider from "@/app/providers/ThemeProvider";
+import MembershipProvider from "@/app/providers/MembershipProvider";
+import ProfileProvider from "@/app/providers/ProfileProvider";
+import DriverProvider from "@/app/providers/DriverProvider";
+
+import Header from "@/components/ui/Header";
 
 export default function ClubLayout() {
   const { clubSlug } = useParams();
-  const location = useLocation();
-  const clubContext = useContext(ClubContext);
 
-  const [loading, setLoading] = useState(true);
+  const [loadingClub, setLoadingClub] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [club, setClub] = useState(clubContext?.club ?? null);
+  const [club, setClub] = useState(null);
 
+  const [user, setUser] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  // ------------------------------------------------------------
+  // LOAD CLUB
+  // ------------------------------------------------------------
   useEffect(() => {
     let mounted = true;
 
-    const contextClub = clubContext?.club;
-    if (contextClub && (!clubSlug || contextClub.slug === clubSlug)) {
-      if (!club || club.id !== contextClub.id) {
-        setClub(contextClub);
-      }
-      setLoading(false);
-      setNotFound(false);
-      return () => {
-        mounted = false;
-      };
-    }
-
-    if (!clubSlug) {
-      setNotFound(true);
-      setLoading(false);
-      return () => {
-        mounted = false;
-      };
-    }
-
     const loadClub = async () => {
-      try {
-        setLoading(true);
-        setNotFound(false);
+      setLoadingClub(true);
+      setNotFound(false);
 
-        const { data, error } = await supabase
-          .from("clubs")
-          .select("id, name, slug, logo_url")
-          .eq("slug", clubSlug)
-          .single();
+      const { data, error } = await supabase
+        .from("clubs")
+        .select("id, name, slug, logo_url")
+        .eq("slug", clubSlug)
+        .single();
 
-        if (!mounted) return;
+      if (!mounted) return;
 
-        if (error || !data) {
-          setNotFound(true);
-          setLoading(false);
-          return;
-        }
-
-        const clubWithTheme = {
-          ...data,
-          theme: data.theme ?? DEFAULT_THEME,
-        };
-
-        if (!club || club.id !== clubWithTheme.id) {
-          setClub(clubWithTheme);
-        }
-        setLoading(false);
-      } catch (err) {
-        if (!mounted) return;
+      if (error || !data) {
         setNotFound(true);
-        setLoading(false);
+        setLoadingClub(false);
+        return;
       }
+
+      // TEMP SAFE SANITIZE
+      if (data && typeof data.logo_url === "string") {
+        const badHosts = ["your-bucket-url", "example.com", "localhost-placeholder"];
+        try {
+          const u = new URL(data.logo_url);
+          if (badHosts.some((h) => u.hostname.includes(h))) {
+            data.logo_url = null;
+          }
+        } catch {
+          data.logo_url = null;
+        }
+      }
+
+      setClub(data);
+      setLoadingClub(false);
     };
 
     loadClub();
@@ -91,23 +68,63 @@ export default function ClubLayout() {
     };
   }, [clubSlug]);
 
-  if (loading) return <div>Loading club…</div>;
-  if (notFound) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h2>Club not found</h2>
-        <p>The app could not find a club for the current URL.</p>
-        <p style={{ color: "#666", fontSize: 13 }}>
-          <strong>Route slug:</strong> {clubSlug ?? "<none>"}<br />
-          <strong>Try:</strong> /chargersrc or ensure ClubProvider supplies a default club.
-        </p>
-      </div>
+  // ------------------------------------------------------------
+  // LOAD USER (AUTH)
+  // ------------------------------------------------------------
+  useEffect(() => {
+    let mounted = true;
+
+    const loadUser = async () => {
+      setLoadingUser(true);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!mounted) return;
+
+      setUser(user || null);
+      setLoadingUser(false);
+    };
+
+    loadUser();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null);
+      }
     );
+
+    return () => {
+      mounted = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  // ------------------------------------------------------------
+  // BLOCK RENDER UNTIL AUTH + CLUB ARE READY
+  // ------------------------------------------------------------
+  if (loadingClub || loadingUser) {
+    return <div className="p-6 text-center">Loading user & club…</div>;
   }
 
+  if (notFound) {
+    return <div className="p-6 text-center">Club not found</div>;
+  }
+
+  // ------------------------------------------------------------
+  // PROVIDERS + PAGE CONTENT
+  // ------------------------------------------------------------
   return (
-    <div className="min-h-screen">
-      <Outlet context={{ club }} />
-    </div>
+    <ThemeProvider>
+      <MembershipProvider user={user}>
+        <ProfileProvider user={user}>
+          <DriverProvider>
+            <Header club={club} user={user} />
+            <Outlet context={{ club, user }} />
+          </DriverProvider>
+        </ProfileProvider>
+      </MembershipProvider>
+    </ThemeProvider>
   );
 }
