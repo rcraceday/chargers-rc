@@ -2,17 +2,17 @@
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
-import ProfileProvider from "@/app/providers/ProfileProvider"; // ✅ CORRECT
+import ProfileProvider from "@/app/providers/ProfileProvider";
 import AppProvider from "@app/providers/AppProvider";
 import ClubProvider from "@app/providers/ClubProvider";
-import ThemeProvider from "@app/providers/ThemeProvider"; // <-- ADD THIS
+import ThemeProvider from "@app/providers/ThemeProvider";
 import AppRoutes from "./app/routes.jsx";
 import "uno.css";
 
 function Root() {
   return (
-    <ThemeProvider> {/* <-- WRAP EVERYTHING */}
-      <BrowserRouter>
+    <BrowserRouter>
+      <ThemeProvider>
         <ProfileProvider>
           <AppProvider>
             <ClubProvider>
@@ -20,8 +20,8 @@ function Root() {
             </ClubProvider>
           </AppProvider>
         </ProfileProvider>
-      </BrowserRouter>
-    </ThemeProvider>
+      </ThemeProvider>
+    </BrowserRouter>
   );
 }
 
