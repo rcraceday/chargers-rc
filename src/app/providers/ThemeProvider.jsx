@@ -25,10 +25,10 @@ export default function ThemeProvider({ children }) {
     root.style.setProperty("--header-text-muted", "#555555");
 
     root.style.setProperty("--header-link", "#111111");
-    root.style.setProperty("--header-link-hover", "#00438a");
+    root.style.setProperty("--header-link-hover", "#0086df");
 
     /* ⭐ ACTIVE LINK — NOT BLUE */
-    root.style.setProperty("--header-link-active", "#8a004c");
+    root.style.setProperty("--header-link-active", "#8a0000");
 
     /* Stripe stays blue */
     root.style.setProperty("--header-accent", "var(--brand-primary)");

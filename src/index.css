@@ -4,12 +4,23 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
 
 /* -------------------------------------------------------
-   2. Global font family
+   2. Global font family + HEADER VARIABLES
 ------------------------------------------------------- */
 :root {
   --site-font: "Poppins", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+
+  /* HEADER THEME VARIABLES */
+  --header-bg: #ffffff;
+  --header-text: #0A1A2F;
+  --header-text-muted: #4B5563;
+
+  --header-link: #0A1A2F;
+  --header-link-hover: #0072CE;
+  --header-link-active: #FFC300;
+
+  --header-accent: #FFC300;
 }
 
 html,
@@ -60,39 +71,36 @@ a svg {
 }
 
 /* -------------------------------------------------------
-   ⭐ 4B. HEADER-SCOPED LINK OVERRIDES (THE FIX)
-   These override the global blue links ONLY inside <header>.
-------------------------------------------------------- */
-
-/* -------------------------------------------------------
-   HEADER-SCOPED LINK OVERRIDES — FINAL FIX
+   HEADER-SCOPED LINK OVERRIDES — FIXED + FINAL
 ------------------------------------------------------- */
 
 header a,
 header a:visited {
   color: var(--header-link) !important;
+  text-decoration: none !important;
 }
 
-header a:hover,
-header a:focus {
+/* Active link */
+header a.text-header-link-active {
+  color: var(--header-link-active) !important;
+  text-decoration: none !important;
+}
+
+header a.text-header-link-active:hover {
+  color: var(--header-link-active) !important;
+  text-decoration: none !important;
+}
+
+/* ⭐ Hover override — this is the missing piece */
+header a:hover {
   color: var(--header-link-hover) !important;
-}
-
-/* ⭐ Active link — always wins */
-header a.text-header-linkActive {
-  color: var(--header-link-active) !important;
-}
-
-/* ⭐ Active link on hover — keep active colour */
-header a.text-header-linkActive:hover {
-  color: var(--header-link-active) !important;
+  text-decoration: none !important;
 }
 
 /* -------------------------------------------------------
    5. GLOBAL TYPOGRAPHY BASELINE (Modern / Clean)
 ------------------------------------------------------- */
 
-/* Base text */
 body {
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-normal);
@@ -100,7 +108,6 @@ body {
   color: var(--brand-text);
 }
 
-/* Headings */
 h1,
 h2,
 h3,
@@ -133,20 +140,17 @@ h6 {
   font-size: var(--font-size-sm);
 }
 
-/* Paragraphs */
 p {
   margin: 0 0 1em 0;
   font-size: var(--font-size-base);
   color: var(--brand-text);
 }
 
-/* Small text */
 small {
   font-size: var(--font-size-sm);
   color: var(--brand-text-muted);
 }
 
-/* Buttons */
 button,
 .btn,
 .btn-secondary,
@@ -157,7 +161,6 @@ button,
   font-size: var(--font-size-base);
 }
 
-/* Form inputs */
 input,
 textarea,
 select {
@@ -167,7 +170,14 @@ select {
   color: var(--brand-text);
 }
 
-/* Labels */
+/* Force readable input text */
+input,
+textarea,
+select {
+  color: #1f2937 !important; /* dark grey */
+}
+
+
 label {
   font-family: var(--font-family);
   font-size: var(--font-size-sm);
@@ -175,14 +185,12 @@ label {
   color: var(--brand-text);
 }
 
-/* Nav links */
 nav a {
   font-family: var(--font-family);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
 }
 
-/* Muted text utility */
 .text-muted {
   color: var(--brand-text-muted);
 }

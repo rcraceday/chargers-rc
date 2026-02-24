@@ -1,7 +1,7 @@
+// src/app/routes.jsx
 import { Routes, Route } from "react-router-dom";
 
 import ClubLayout from "@app/providers/ClubLayout";
-import ThemeProvider from "@app/providers/ThemeProvider.jsx";
 
 import Login from "@app/pages/public/Login";
 import Signup from "@app/pages/public/Signup";
@@ -22,17 +22,13 @@ import DriverProfile from "@app/pages/profile/DriverProfile";
 import AddDriver from "@app/pages/profile/AddDriver";
 import EditDriver from "@app/pages/profile/EditDriver";
 
+// ⭐ NEW — Admin Dashboard
+import AdminDashboard from "@app/pages/admin/AdminDashboard";
+
 export default function RoutesFile() {
   return (
     <Routes>
-      <Route
-        path="/:clubSlug/*"
-        element={
-          <ThemeProvider>
-            <ClubLayout />
-          </ThemeProvider>
-        }
-      >
+      <Route path="/:clubSlug/*" element={<ClubLayout />}>
         <Route path="login" element={<Login />} />
         <Route path="signup" element={<Signup />} />
         <Route path="welcome" element={<Welcome />} />
@@ -47,6 +43,9 @@ export default function RoutesFile() {
         <Route path="profile/drivers/add" element={<AddDriver />} />
         <Route path="profile/drivers/:id/edit" element={<EditDriver />} />
         <Route path="profile/drivers/:id" element={<DriverProfile />} />
+
+        {/* ⭐ NEW — Admin Dashboard Route */}
+        <Route path="admin" element={<AdminDashboard />} />
       </Route>
 
       <Route path="*" element={<div>Page not found.</div>} />
