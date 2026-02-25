@@ -7,52 +7,123 @@ export default function Membership() {
   const clubSlug = club?.slug;
 
   const { membership, loadingMembership } = useContext(MembershipContext);
-  console.debug("CONSUMER sees membership:", membership, "loading:", loadingMembership);
 
-  const isActiveMember =
+  const now = new Date();
+  const endDate =
+    membership?.endDateObj ??
+    (membership?.end_date ? new Date(membership.end_date) : null);
+
+  const isActive =
     membership &&
     !loadingMembership &&
-    (membership.status || "").toLowerCase() === "active" &&
-    (membership.endDateObj ?? new Date(membership.end_date)) > new Date();
+    membership.status?.toLowerCase() === "active" &&
+    endDate &&
+    endDate >= now;
+
+  const isExpired =
+    membership &&
+    !loadingMembership &&
+    endDate &&
+    endDate < now;
+
+  const prettyType = membership?.membership_type
+    ? membership.membership_type.charAt(0).toUpperCase() +
+      membership.membership_type.slice(1)
+    : null;
 
   return (
-    <div className="min-h-screen flex justify-center px-4 py-6">
-      <div className="w-full max-w-xl">
-
-        {/* Header */}
-        <header className="mb-8">
-          <h1 className="text-2xl font-semibold mb-2">
-            Membership at {club?.name}
-          </h1>
-
-          {/* Member vs Non-member copy */}
-          {isActiveMember ? (
-            <div className="text-sm text-green-700">
-              <p className="font-medium">You're a recognised member — thank you!</p>
-              <p className="text-gray-700">
-                <strong>Membership type:</strong> {membership.membership_type}
-                {membership.end_date ? (
-                  <>
-                    {" "}
-                    • <strong>Valid until:</strong>{" "}
-                    {new Date(membership.end_date).toLocaleDateString()}
-                  </>
-                ) : null}
-              </p>
+    <div className="min-h-screen w-full bg-background text-text-base">
+      {/* HERO */}
+      <section className="w-full bg-surface">
+        <div className="max-w-6xl mx-auto px-4 pt-10 pb-10">
+          <div
+            className="rounded-lg"
+            style={{
+              padding: "3px",
+              background:
+                "linear-gradient(315deg, #2e3192, #00aeef, #2e3192)",
+              boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
+            }}
+          >
+            <div
+              className="rounded-md text-center"
+              style={{
+                background: "#00438A",
+                padding: "28px 16px",
+              }}
+            >
+              <h1
+                className="text-3xl font-semibold tracking-tight"
+                style={{ color: "white" }}
+              >
+                Membership at {club?.name}
+              </h1>
             </div>
-          ) : (
-            <p className="text-gray-600 text-sm">
-              Support the club and unlock full access.
-            </p>
-          )}
-        </header>
+          </div>
+        </div>
+      </section>
 
-        {/* Benefits (only for non-members) */}
-        {!isActiveMember && (
-          <section className="mb-8">
-            <h2 className="text-lg font-semibold mb-3">Benefits</h2>
-            <div className="border border-gray-200 rounded-md p-4 bg-white shadow-sm">
-              <ul className="list-disc ml-5 text-gray-700 text-sm space-y-1">
+      {/* MAIN */}
+      <main className="max-w-6xl mx-auto px-4 pt-10 pb-16 space-y-12">
+        {/* STATUS */}
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold tracking-[0.18em] uppercase text-text-muted">
+            Membership status
+          </h2>
+
+          <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-2">
+            {loadingMembership && (
+              <p className="text-text-muted text-sm">Loading membership…</p>
+            )}
+
+            {!loadingMembership && !membership && (
+              <>
+                <p className="font-medium text-text-base">
+                  You’re not currently a member.
+                </p>
+                <p className="text-sm text-text-muted">
+                  Support the club and unlock full access to events, nominations, and member benefits.
+                </p>
+              </>
+            )}
+
+            {!loadingMembership && membership && isActive && (
+              <>
+                <p className="font-medium text-emerald-700">
+                  You’re an active member — thank you for supporting the club.
+                </p>
+                <p className="text-sm text-text-muted">
+                  <strong>Membership type:</strong> {prettyType} •{" "}
+                  <strong>Valid until:</strong>{" "}
+                  {endDate?.toLocaleDateString()}
+                </p>
+              </>
+            )}
+
+            {!loadingMembership && membership && isExpired && (
+              <>
+                <p className="font-medium text-amber-700">
+                  Your membership has expired.
+                </p>
+                <p className="text-sm text-text-muted">
+                  <strong>Last membership type:</strong> {prettyType} •{" "}
+                  <strong>Expired on:</strong>{" "}
+                  {endDate?.toLocaleDateString()}
+                </p>
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* BENEFITS */}
+        {(!membership || isExpired) && (
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold tracking-[0.18em] uppercase text-text-muted">
+              Member benefits
+            </h2>
+
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <ul className="list-disc ml-5 text-sm text-text-muted space-y-1">
                 <li>Access to all club racing events</li>
                 <li>Driver profiles and race history</li>
                 <li>Setup sharing and tuning notes</li>
@@ -63,41 +134,94 @@ export default function Membership() {
           </section>
         )}
 
-        {/* Pricing Placeholder (only for non-members) */}
-        {!isActiveMember && (
-          <section className="mb-8">
-            <h2 className="text-lg font-semibold mb-3">Membership Options</h2>
-            <div className="border border-gray-200 rounded-md p-4 bg-white shadow-sm">
-              <p className="text-gray-600 text-sm">
-                Membership pricing will appear here.
-              </p>
-            </div>
-          </section>
-        )}
+        {/* PRICING */}
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold tracking-[0.18em] uppercase text-text-muted">
+            Membership options
+          </h2>
 
-        {/* CTA */}
-        {clubSlug && (
-          !isActiveMember ? (
+          <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4 text-sm text-text-muted">
+            <div>
+              <h3 className="font-semibold text-text-base mb-1">
+                Full Year (Jan – Dec)
+              </h3>
+              <p>Single: $80 • Family: $110 • Junior: $40</p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-text-base mb-1">
+                Half Year (Jan – Jun / Jul – Dec)
+              </h3>
+              <p>Single: $50 • Family: $70</p>
+            </div>
+
+            <div className="text-xs space-y-1">
+              <p>* A family includes 1–2 parents/guardians and their children under 16.</p>
+              <p>** Junior members must be aged 16 or under at the time of application.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* CTAS */}
+        <section className="space-y-3">
+          {/* Non-member */}
+          {!loadingMembership && !membership && (
             <Link
-              to={`/${clubSlug}/signup`}
-              className="block w-full text-center py-3 bg-black text-white rounded-md font-semibold shadow-sm"
+              to={`/${clubSlug}/membership/join`}
+              className="block text-center py-3 rounded-md font-semibold"
+              style={{ background: "#00438A", color: "white" }}
             >
-              Create Account
+              Join Membership
             </Link>
-          ) : (
-            <div className="p-4 text-center text-sm text-green-700 border border-green-100 rounded-md bg-green-50">
-              <div className="font-medium">Member details</div>
-              <div className="text-gray-700 mt-1">
-                <span className="mr-3"><strong>Type:</strong> {membership.membership_type}</span>
-                {membership.end_date && (
-                  <span><strong>Valid until:</strong> {new Date(membership.end_date).toLocaleDateString()}</span>
-                )}
-              </div>
-            </div>
-          )
-        )}
+          )}
 
-      </div>
+          {/* Active member */}
+          {!loadingMembership && membership && isActive && (
+            <>
+              <Link
+                to={`/${clubSlug}/membership/renew`}
+                className="block text-center py-3 rounded-md font-semibold"
+                style={{ background: "#00438A", color: "white" }}
+              >
+                Renew Membership
+              </Link>
+
+              {membership.membership_type !== "family" && (
+                <Link
+                  to={`/${clubSlug}/membership/upgrade`}
+                  className="block text-center py-3 rounded-md font-semibold bg-gray-100 text-gray-900"
+                >
+                  Upgrade to Family Membership
+                </Link>
+              )}
+            </>
+          )}
+
+          {/* Expired member */}
+          {!loadingMembership && membership && isExpired && (
+            <>
+              <Link
+                to={`/${clubSlug}/membership/renew`}
+                className="block text-center py-3 rounded-md font-semibold"
+                style={{ background: "#00438A", color: "white" }}
+              >
+                Renew Membership
+              </Link>
+
+              <Link
+                to={`/${clubSlug}/membership/join`}
+                className="block text-center py-3 rounded-md font-semibold bg-gray-100 text-gray-900"
+              >
+                Start a New Membership
+              </Link>
+            </>
+          )}
+        </section>
+      </main>
     </div>
   );
+}
+
+function StepDot() {
+  return null; // Not used on this page
 }

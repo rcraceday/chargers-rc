@@ -29,16 +29,12 @@ export default function Card({ children, className = "", ...props }) {
     position: "relative",
     overflow: "hidden",
 
-    // Bigger text for EVERYTHING inside
     fontSize: "1rem",
     lineHeight: "1.4",
     color: palette.textBase,
 
-    // Remove underline globally
     textDecoration: "none",
 
-    // Remove link styling
-    // This is the key fix
     "--reset-link": `
       all: unset;
       color: inherit;
@@ -51,18 +47,17 @@ export default function Card({ children, className = "", ...props }) {
   };
 
   const innerHoverStyle = {
-    background: "#e6f4ff", // light blue hover
+    background: "#e6f4ff",
   };
 
-  const bottomBarStyle = {
+  // ⭐ Thin 1px bottom border (theme‑safe, subtle)
+  const thinBottomBorderStyle = {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: "5px",
-    borderBottomLeftRadius: `${INNER_RADIUS}px`,
-    borderBottomRightRadius: `${INNER_RADIUS}px`,
-    background: "linear-gradient(90deg, #2e3192, #00aeef, #2e3192)",
+    height: "1px",
+    background: "rgba(0,0,0,0.10)",
   };
 
   return (
@@ -72,12 +67,12 @@ export default function Card({ children, className = "", ...props }) {
       onMouseEnter={(e) => {
         Object.assign(e.currentTarget.style, wrapperHoverStyle);
         const inner = e.currentTarget.querySelector(".card-inner");
-        Object.assign(inner.style, innerHoverStyle);
+        if (inner) Object.assign(inner.style, innerHoverStyle);
       }}
       onMouseLeave={(e) => {
         Object.assign(e.currentTarget.style, wrapperStyle);
         const inner = e.currentTarget.querySelector(".card-inner");
-        Object.assign(inner.style, innerStyle);
+        if (inner) Object.assign(inner.style, innerStyle);
       }}
     >
       <div
@@ -97,7 +92,9 @@ export default function Card({ children, className = "", ...props }) {
           `}
         </style>
 
-        <div style={bottomBarStyle} />
+        {/* ⭐ New subtle 1px bottom border */}
+        <div style={thinBottomBorderStyle} />
+
         {children}
       </div>
     </div>

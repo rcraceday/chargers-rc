@@ -16,14 +16,14 @@ export default function Home() {
     <div className="min-h-screen w-full bg-background text-text-base">
 
       {/* HERO — Chargers Blue, White Text, Thin Outline, Centered */}
-      <section className="w-full bg-surface border-b border-surfaceBorder">
+      <section className="w-full bg-surface">
         <div className="max-w-6xl mx-auto px-4 pt-10 pb-10">
 
           {/* OUTER WRAPPER WITH THIN OUTLINE + SHADOW */}
           <div
             className="rounded-lg"
             style={{
-              padding: "1px",
+              padding: "3px",
               background:
                 "linear-gradient(315deg, #2e3192, #00aeef, #2e3192)",
               boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
@@ -38,7 +38,6 @@ export default function Home() {
               style={{
                 background: "#00438A",
                 padding: "35px 16px 23px 16px",
-                // ↑ bumped top padding by another ~2px (33 → 35)
               }}
             >
               <h1

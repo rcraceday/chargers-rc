@@ -1,108 +1,178 @@
 import { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import useMembership from "@app/hooks/useMembership";
 import { useNotifications } from "@app/hooks/useNotifications";
+import Card from "@/components/ui/Card";
 
-const PLANS = [
-  {
-    id: "full",
-    name: "Full Year Membership",
-    price: 50,
-    description: "Best value for regular racers and families.",
-  },
-  {
-    id: "half",
-    name: "Half Year Membership",
-    price: 30,
-    description: "Great for mid-season joiners.",
-  },
-];
+const PRICING = {
+  single: { full: 80, half: 50 },
+  family: { full: 110, half: 70 },
+  junior: { full: 40, half: 40 },
+};
 
 export default function RenewMembership() {
+  const { clubSlug } = useParams();
+  const navigate = useNavigate();
   const { membership, loadingMembership, renewMembership } = useMembership();
   const { notify } = useNotifications();
 
   const [step, setStep] = useState(1);
-  const [selectedPlan, setSelectedPlan] = useState("full");
+  const [duration, setDuration] = useState("full");
   const [processing, setProcessing] = useState(false);
 
   if (loadingMembership) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center">
-        <div className="flex items-center gap-3">
-          <div className="h-6 w-6 rounded-full border-2 border-slate-700 border-t-emerald-400 animate-spin" />
-          <p className="text-slate-300 text-sm">Loading membership…</p>
+      <div className="min-h-screen w-full bg-background text-text-base flex items-center justify-center">
+        <p className="text-text-muted text-sm">Loading membership…</p>
+      </div>
+    );
+  }
+
+  if (!membership) {
+    return (
+      <div className="min-h-screen w-full bg-background text-text-base flex items-center justify-center px-4">
+        <div className="max-w-md w-full space-y-4">
+          <Card>
+            <p className="text-sm text-text-muted">
+              You don’t currently have a membership to renew.
+            </p>
+          </Card>
         </div>
       </div>
     );
   }
 
-  const currentPlan = PLANS.find((p) => p.id === selectedPlan);
+  const type = (membership.membership_type || "single").toLowerCase();
+  const prices = PRICING[type] || PRICING.single;
+  const price = duration === "full" ? prices.full : prices.half;
 
-  const handleContinueFromPlan = () => setStep(2);
+  const handleContinue = () => setStep(2);
 
   const handleComplete = async () => {
     setProcessing(true);
-    await renewMembership();
-    notify("Membership renewed successfully", "success");
-    setProcessing(false);
-    setStep(3);
+    try {
+      await renewMembership();
+      notify("Membership renewed successfully", "success");
+      setStep(3);
+    } catch (e) {
+      console.error("Renew membership failed", e);
+      notify("There was a problem renewing your membership.", "error");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleFinish = () => {
+    if (clubSlug) navigate(`/${clubSlug}/membership`);
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 px-4 py-10">
-      <div className="max-w-2xl mx-auto space-y-8">
+    <div className="min-h-screen w-full bg-background text-text-base">
+      {/* HERO */}
+      <section className="w-full bg-surface">
+        <div className="max-w-6xl mx-auto px-4 pt-10 pb-10">
+          <div
+            className="rounded-lg"
+            style={{
+              padding: "3px",
+              background:
+                "linear-gradient(315deg, #2e3192, #00aeef, #2e3192)",
+              boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
+            }}
+          >
+            <div
+              className="rounded-md text-center"
+              style={{
+                background: "#00438A",
+                padding: "28px 16px",
+              }}
+            >
+              <h1
+                className="text-3xl font-semibold tracking-tight"
+                style={{ color: "white" }}
+              >
+                Renew Membership
+              </h1>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">
-          Renew Membership
-        </h1>
-
-        <p className="text-slate-400 text-sm">
-          Keep your household membership active for nominations and club benefits.
-        </p>
-
-        {/* STEP INDICATOR */}
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <StepDot active={step === 1} label="Choose plan" />
+      {/* MAIN */}
+      <main className="max-w-6xl mx-auto px-4 pt-10 pb-12 space-y-8">
+        {/* Step indicator */}
+        <div className="flex items-center gap-2 text-sm text-text-muted">
+          <StepDot active={step === 1} label="Choose duration" />
           <span>›</span>
-          <StepDot active={step === 2} label="Confirm & pay" />
+          <StepDot active={step === 2} label="Confirm" />
           <span>›</span>
           <StepDot active={step === 3} label="Done" />
         </div>
 
-        {/* STEP 1 — CHOOSE PLAN */}
+        {/* STEP 1 */}
         {step === 1 && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 space-y-4 animate-slideUp">
-            <h2 className="text-xl font-semibold text-slate-50">Choose a plan</h2>
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-text-base">
+              Choose renewal period
+            </h2>
 
             <div className="space-y-3">
-              {PLANS.map((plan) => (
-                <button
-                  key={plan.id}
-                  type="button"
-                  onClick={() => setSelectedPlan(plan.id)}
-                  className={`w-full text-left p-4 rounded-xl border transition ${
-                    selectedPlan === plan.id
-                      ? "border-emerald-500 bg-emerald-500/10"
-                      : "border-slate-700 bg-slate-900"
-                  }`}
+              {/* FULL YEAR */}
+              <button type="button" onClick={() => setDuration("full")} className="w-full text-left">
+                <div
+                  className={`rounded-xl border p-4 transition-colors ${
+                    duration === "full"
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-gray-300 bg-white"
+                  } hover:border-blue-500 hover:bg-blue-50`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold text-slate-100">{plan.name}</h3>
-                      <p className="text-sm text-slate-400">{plan.description}</p>
+                      <h3 className="font-semibold text-text-base">
+                        Full Year (Jan – Dec)
+                      </h3>
+                      <p className="text-sm text-text-muted">
+                        Best value for regular racers and families.
+                      </p>
                     </div>
-                    <div className="text-lg font-semibold text-slate-100">
-                      ${plan.price}
+                    <div className="text-lg font-semibold text-text-base">
+                      ${prices.full}
                     </div>
                   </div>
-                </button>
-              ))}
+                </div>
+              </button>
+
+              {/* HALF YEAR */}
+              <button type="button" onClick={() => setDuration("half")} className="w-full text-left">
+                <div
+                  className={`rounded-xl border p-4 transition-colors ${
+                    duration === "half"
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-gray-300 bg-white"
+                  } hover:border-blue-500 hover:bg-blue-50`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-text-base">
+                        Half Year (Jan – Jun / Jul – Dec)
+                      </h3>
+                      <p className="text-sm text-text-muted">
+                        Flexible 6‑month membership option.
+                      </p>
+                    </div>
+                    <div className="text-lg font-semibold text-text-base">
+                      ${prices.half}
+                    </div>
+                  </div>
+                </div>
+              </button>
             </div>
 
             <div className="flex justify-end">
               <button
-                onClick={handleContinueFromPlan}
-                className="rounded-full bg-emerald-500 text-slate-950 px-5 py-2.5 text-sm font-semibold hover:bg-emerald-400 transition-colors"
+                onClick={handleContinue}
+                className="rounded-md px-5 py-2.5 text-sm font-semibold"
+                style={{ background: "#00438A", color: "white" }}
               >
                 Continue
               </button>
@@ -110,30 +180,38 @@ export default function RenewMembership() {
           </div>
         )}
 
-        {/* STEP 2 — CONFIRM & PAY */}
+        {/* STEP 2 */}
         {step === 2 && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 space-y-4 animate-slideUp">
-            <h2 className="text-xl font-semibold text-slate-50">Confirm & pay</h2>
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-text-base">
+              Confirm renewal
+            </h2>
 
-            <div className="rounded-xl border border-slate-700 bg-slate-950 p-4">
-              <h3 className="font-medium text-slate-100 mb-1">{currentPlan.name}</h3>
-              <p className="text-sm text-slate-400 mb-2">{currentPlan.description}</p>
-              <p className="text-lg font-semibold text-slate-100">${currentPlan.price}</p>
+            <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <h3 className="font-medium text-text-base mb-1">
+                {duration === "full"
+                  ? "Full Year Membership"
+                  : "Half Year Membership"}
+              </h3>
+              <p className="text-sm text-text-muted mb-2">
+                Membership type:{" "}
+                {membership.membership_type
+                  ? membership.membership_type.charAt(0).toUpperCase() +
+                    membership.membership_type.slice(1)
+                  : "Member"}
+              </p>
+              <p className="text-lg font-semibold text-text-base">${price}</p>
             </div>
 
-            <p className="text-sm text-slate-500">
-              Payment processing will be integrated soon. For now, this simulates a successful renewal.
+            <p className="text-xs text-text-muted">
+              Payment processing will be integrated soon.
             </p>
 
             <div className="flex justify-between">
               <button
                 onClick={() => setStep(1)}
                 disabled={processing}
-                className={`rounded-full px-5 py-2.5 text-sm font-semibold transition-colors ${
-                  processing
-                    ? "bg-slate-700 text-slate-400 cursor-not-allowed"
-                    : "bg-slate-800 text-slate-200 hover:bg-slate-700"
-                }`}
+                className="rounded-md px-5 py-2.5 text-sm font-semibold border border-gray-200 bg-white text-text-base"
               >
                 Back
               </button>
@@ -141,11 +219,11 @@ export default function RenewMembership() {
               <button
                 onClick={handleComplete}
                 disabled={processing}
-                className={`rounded-full px-5 py-2.5 text-sm font-semibold transition-colors ${
-                  processing
-                    ? "bg-slate-700 text-slate-400 cursor-not-allowed"
-                    : "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
-                }`}
+                className="rounded-md px-5 py-2.5 text-sm font-semibold"
+                style={{
+                  background: processing ? "#9ca3af" : "#00438A",
+                  color: "white",
+                }}
               >
                 {processing ? "Processing…" : "Complete renewal"}
               </button>
@@ -153,16 +231,27 @@ export default function RenewMembership() {
           </div>
         )}
 
-        {/* STEP 3 — DONE */}
+        {/* STEP 3 */}
         {step === 3 && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 space-y-3 animate-slideUp">
-            <h2 className="text-xl font-semibold text-slate-50">Membership renewed</h2>
-            <p className="text-sm text-slate-400">
-              Your membership has been renewed. You’ll continue to have access to nominations and club events.
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold text-text-base">
+              Membership renewed
+            </h2>
+            <p className="text-sm text-text-muted">
+              Your membership has been renewed successfully.
             </p>
+            <div className="flex justify-end">
+              <button
+                onClick={handleFinish}
+                className="rounded-md px-5 py-2.5 text-sm font-semibold"
+                style={{ background: "#00438A", color: "white" }}
+              >
+                Back to Membership
+              </button>
+            </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }
@@ -171,14 +260,11 @@ function StepDot({ active, label }) {
   return (
     <div className="flex items-center gap-2">
       <span
-        className={`w-2.5 h-2.5 rounded-full ${
-          active ? "bg-emerald-400" : "bg-slate-600"
-        }`}
+        className="w-2.5 h-2.5 rounded-full"
+        style={{ background: active ? "#10b981" : "#9ca3af" }}
       />
       <span
-        className={`${
-          active ? "font-medium text-slate-100" : "text-slate-500"
-        }`}
+        className={active ? "font-medium text-text-base" : "text-text-muted"}
       >
         {label}
       </span>

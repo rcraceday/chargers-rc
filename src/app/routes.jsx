@@ -29,6 +29,11 @@ import AdminLayout from "@app/pages/admin/AdminLayout";
 import ChampionshipsList from "@app/pages/admin/championships/ChampionshipsList";
 import CreateChampionship from "@app/pages/admin/championships/CreateChampionship";
 
+// Membership flows
+import JoinMembership from "@app/pages/membership/JoinMembership";
+import RenewMembership from "@app/pages/membership/RenewMembership";
+import UpgradeMembership from "@app/pages/membership/UpgradeMembership";
+
 export default function RoutesFile() {
   return (
     <Routes>
@@ -38,11 +43,22 @@ export default function RoutesFile() {
         <Route path="signup" element={<Signup />} />
         <Route path="welcome" element={<Welcome />} />
         <Route index element={<Home />} />
+
+        {/* Membership */}
         <Route path="membership" element={<Membership />} />
+        <Route path="membership/join" element={<JoinMembership />} />
+        <Route path="membership/renew" element={<RenewMembership />} />
+        <Route path="membership/upgrade" element={<UpgradeMembership />} />
+
+        {/* Calendar */}
         <Route path="calendar" element={<Calendar />} />
         <Route path="calendar/:id" element={<CalendarItemDetails />} />
+
+        {/* Events */}
         <Route path="events" element={<Events />} />
         <Route path="events/:id" element={<EventDetails />} />
+
+        {/* Profile + Drivers */}
         <Route path="profile" element={<UserProfile />} />
         <Route path="profile/drivers" element={<DriverManager />} />
         <Route path="profile/drivers/add" element={<AddDriver />} />

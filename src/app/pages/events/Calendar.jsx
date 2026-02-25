@@ -85,95 +85,162 @@ export default function Calendar() {
   }
 
   return (
-    <div className="min-h-screen flex justify-center px-4 py-6">
-      <div className="w-full max-w-xl">
+    <div className="min-h-screen w-full bg-background text-text-base">
 
-        {/* Title */}
-        <h1 className="text-2xl font-semibold mb-6">Calendar</h1>
+      {/* HERO TITLE — MATCHES HOME PAGE */}
+      <section className="w-full bg-surface border-b border-surfaceBorder">
+        <div className="max-w-6xl mx-auto px-4 pt-10 pb-10">
 
-        {/* Month Selector */}
-        <div className="flex gap-2 mb-6">
-          <select
-            className="border border-gray-300 rounded-md p-2 bg-white"
-            value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
+          {/* Thicker outline + shadow */}
+          <div
+            className="rounded-lg"
+            style={{
+              padding: "3px", // THICKER OUTLINE
+              background:
+                "linear-gradient(315deg, #2e3192, #00aeef, #2e3192)",
+              boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
+            }}
           >
-            {MONTHS.map((m, i) => (
-              <option key={m} value={i}>{m}</option>
-            ))}
-          </select>
-
-          <select
-            className="border border-gray-300 rounded-md p-2 bg-white"
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-          >
-            {Array.from({ length: 5 }).map((_, i) => {
-              const y = today.getFullYear() - 2 + i;
-              return <option key={y} value={y}>{y}</option>;
-            })}
-          </select>
-        </div>
-
-        {loading && (
-          <p className="text-gray-600">Loading calendar…</p>
-        )}
-
-        {!loading && (
-          <div className="grid grid-cols-7 gap-2 text-center text-sm">
-
-            {/* Weekday headers */}
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-              <div key={d} className="font-semibold py-2">
-                {d}
-              </div>
-            ))}
-
-            {/* Calendar days */}
-            {days.map((day, i) => {
-              const items = itemsForDay(day);
-
-              return (
-                <div
-                  key={i}
-                  className="
-                    border border-gray-200 rounded-md min-h-24 p-2 text-left bg-white shadow-sm
-                    flex flex-col
-                  "
-                >
-                  {day && (
-                    <div className="font-semibold mb-1">{day}</div>
-                  )}
-
-                  <div className="flex flex-col gap-1">
-                    {items.map((item) => {
-                      const isEvent = item.type === "event";
-
-                      return (
-                        <Link
-                          key={item.id}
-                          to={
-                            isEvent
-                              ? `/${clubSlug}/events/${item.id}`
-                              : `/${clubSlug}/calendar/${item.id}`
-                          }
-                          className={`
-                            text-xs underline
-                            ${isEvent ? "text-blue-600" : "text-gray-700"}
-                          `}
-                        >
-                          {item.title}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+            <div
+              className="
+                rounded-md
+                flex items-center justify-center text-center
+              "
+              style={{
+                background: "#00438A",
+                padding: "28px 16px",
+              }}
+            >
+              <h1
+                className="text-3xl font-semibold tracking-tight"
+                style={{ color: "white" }}
+              >
+                Club Calendar
+              </h1>
+            </div>
           </div>
-        )}
 
-      </div>
+        </div>
+      </section>
+
+      {/* MAIN CONTENT */}
+      <main className="max-w-6xl mx-auto px-4 pt-10 pb-12 space-y-10">
+
+        {/* MONTH SELECTOR */}
+        <section>
+          <h2 className="text-sm font-semibold tracking-[0.18em] uppercase text-text-muted mb-3">
+            Select Month
+          </h2>
+
+          <div className="flex gap-3">
+            <select
+              className="border border-surfaceBorder rounded-md p-2 bg-white shadow-sm"
+              value={month}
+              onChange={(e) => setMonth(Number(e.target.value))}
+            >
+              {MONTHS.map((m, i) => (
+                <option key={m} value={i}>{m}</option>
+              ))}
+            </select>
+
+            <select
+              className="border border-surfaceBorder rounded-md p-2 bg-white shadow-sm"
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+            >
+              {Array.from({ length: 5 }).map((_, i) => {
+                const y = today.getFullYear() - 2 + i;
+                return <option key={y} value={y}>{y}</option>;
+              })}
+            </select>
+          </div>
+        </section>
+
+        {/* CALENDAR GRID — NOW WITH THICKER OUTLINE */}
+        <section>
+          <h2 className="text-sm font-semibold tracking-[0.18em] uppercase text-text-muted mb-3">
+            Month View
+          </h2>
+
+          {/* OUTER WRAPPER — thicker gradient outline + shadow */}
+          <div
+            className="rounded-lg"
+            style={{
+              padding: "3px", // THICKER OUTLINE
+              background:
+                "linear-gradient(315deg, #2e3192, #00aeef, #2e3192)",
+              boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
+            }}
+          >
+            {/* INNER SURFACE */}
+            <div
+              className="rounded-md p-4"
+              style={{
+                background: "white",
+              }}
+            >
+              {loading && (
+                <p className="text-text-muted">Loading calendar…</p>
+              )}
+
+              {!loading && (
+                <div className="grid grid-cols-7 gap-2 text-center text-sm">
+
+                  {/* Weekday headers */}
+                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+                    <div key={d} className="font-semibold py-2 text-text-muted">
+                      {d}
+                    </div>
+                  ))}
+
+                  {/* Calendar days */}
+                  {days.map((day, i) => {
+                    const items = itemsForDay(day);
+
+                    return (
+                      <div
+                        key={i}
+                        className="
+                          border border-surfaceBorder rounded-md min-h-24 p-2 text-left bg-white shadow-sm
+                          flex flex-col
+                        "
+                      >
+                        {day && (
+                          <div className="font-semibold mb-1">{day}</div>
+                        )}
+
+                        <div className="flex flex-col gap-1">
+                          {items.map((item) => {
+                            const isEvent = item.type === "event";
+
+                            return (
+                              <Link
+                                key={item.id}
+                                to={
+                                  isEvent
+                                    ? `/${clubSlug}/events/${item.id}`
+                                    : `/${clubSlug}/calendar/${item.id}`
+                                }
+                                className={`
+                                  text-xs underline
+                                  ${isEvent ? "text-blue-600" : "text-gray-700"}
+                                `}
+                              >
+                                {item.title}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+      </main>
     </div>
   );
 }
