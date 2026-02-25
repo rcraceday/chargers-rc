@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 import { useAuth } from "@app/providers/AuthProvider";
 import { useMembership } from "@app/providers/MembershipProvider";
+import { useTheme } from "@/app/providers/ThemeProvider";
 
 import rcracedayLogo from "../../assets/rcraceday_logo.png";
 import chargersLogo from "../../assets/Chargers_RC_Logo_2026.png";
@@ -14,15 +15,10 @@ export default function Header({ club }) {
 
   const { user } = useAuth();
   const { membership } = useMembership();
+  const { palette } = useTheme();
 
-  console.log("HEADER USER ROLE:", user?.role);
-  console.log("HEADER CLUB:", club);
-
-
-  // Admin detection
   const isAdmin = user?.role === "admin";
 
-  // Home path
   const homePath = club?.slug ? `/${club.slug}/` : "/";
 
   const headerLogo =
@@ -44,7 +40,6 @@ export default function Header({ club }) {
     }
   }
 
-  // Bulletproof active logic
   const isActive = (path) => {
     const cleanA = location.pathname.replace(/\/+$/, "");
     const cleanB = path.replace(/\/+$/, "");
@@ -53,9 +48,18 @@ export default function Header({ club }) {
 
   return (
     <>
-      <header className="w-full bg-header-bg border-b border-border shadow-sm">
-        <div className="relative w-full max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
-
+      <header
+        className="w-full border-b"
+        style={{
+          background: palette.surface,
+          borderColor: palette.surfaceBorder,
+          boxShadow: "0 4px 10px rgba(0,0,0,0.18)", // CARD SHADOW
+        }}
+      >
+        <div
+          className="relative w-full max-w-6xl mx-auto px-4 h-20 flex items-center justify-between"
+          style={{ color: palette.headerText }}
+        >
           {/* LEFT: LOGO */}
           <Link to={homePath} className="flex items-center no-underline">
             <img
@@ -65,7 +69,7 @@ export default function Header({ club }) {
             />
           </Link>
 
-          {/* CENTER: NAV */}
+          {/* CENTER NAV */}
           <nav
             className="
               hidden md:flex
@@ -73,63 +77,162 @@ export default function Header({ club }) {
               items-center gap-10 font-medium
             "
           >
+            {/* HOME */}
             <Link
               to={homePath}
-              className={`
-                no-underline transition
-                ${isActive(homePath)
-                  ? "text-header-link-active"
-                  : "text-header-link hover:text-header-link-hover"}
-              `}
+              className="no-underline transition"
+              style={{
+                color: isActive(homePath)
+                  ? palette.headerLinkActive
+                  : palette.headerLink,
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.color = palette.headerLinkHover)
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.color = isActive(homePath)
+                  ? palette.headerLinkActive
+                  : palette.headerLink)
+              }
             >
               Home
             </Link>
 
+            {/* EVENTS */}
             {club?.slug && (
               <Link
                 to={`/${club.slug}/events/`}
-                className={`
-                  no-underline transition
-                  ${isActive(`/${club.slug}/events/`)
-                    ? "text-header-link-active"
-                    : "text-header-link hover:text-header-link-hover"}
-                `}
+                className="no-underline transition"
+                style={{
+                  color: isActive(`/${club.slug}/events/`)
+                    ? palette.headerLinkActive
+                    : palette.headerLink,
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.color = palette.headerLinkHover)
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = isActive(
+                    `/${club.slug}/events/`
+                  )
+                    ? palette.headerLinkActive
+                    : palette.headerLink)
+                }
               >
                 Events
               </Link>
             )}
 
+            {/* CALENDAR */}
+            {club?.slug && (
+              <Link
+                to={`/${club.slug}/calendar/`}
+                className="no-underline transition"
+                style={{
+                  color: isActive(`/${club.slug}/calendar/`)
+                    ? palette.headerLinkActive
+                    : palette.headerLink,
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.color = palette.headerLinkHover)
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = isActive(
+                    `/${club.slug}/calendar/`
+                  )
+                    ? palette.headerLinkActive
+                    : palette.headerLink)
+                }
+              >
+                Calendar
+              </Link>
+            )}
+
+            {/* NOMINATE */}
+            {club?.slug && (
+              <Link
+                to={`/${club.slug}/nominate/`}
+                className="no-underline transition"
+                style={{
+                  color: isActive(`/${club.slug}/nominate/`)
+                    ? palette.headerLinkActive
+                    : palette.headerLink,
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.color = palette.headerLinkHover)
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = isActive(
+                    `/${club.slug}/nominate/`
+                  )
+                    ? palette.headerLinkActive
+                    : palette.headerLink)
+                }
+              >
+                Nominate
+              </Link>
+            )}
+
+            {/* MEMBERSHIP */}
             {club?.slug && (
               <Link
                 to={`/${club.slug}/membership/`}
-                className={`
-                  no-underline transition
-                  ${isActive(`/${club.slug}/membership/`)
-                    ? "text-header-link-active"
-                    : "text-header-link hover:text-header-link-hover"}
-                `}
+                className="no-underline transition"
+                style={{
+                  color: isActive(`/${club.slug}/membership/`)
+                    ? palette.headerLinkActive
+                    : palette.headerLink,
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.color = palette.headerLinkHover)
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = isActive(
+                    `/${club.slug}/membership/`
+                  )
+                    ? palette.headerLinkActive
+                    : palette.headerLink)
+                }
               >
                 Membership
               </Link>
             )}
 
-            {/* ⭐ ADMIN PORTAL (desktop) */}
-{isAdmin && club?.slug && (
-  <Link
-    to={`/${club.slug}/admin`}
-    className="text-header-link hover:text-header-link-hover text-sm font-medium"
-  >
-    Admin Portal
-  </Link>
-)}
+            {/* ADMIN PORTAL — RED OUTLINE */}
+            {isAdmin && club?.slug && (
+              <Link
+                to={`/${club.slug}/admin`}
+                className="text-sm font-medium no-underline transition px-2 py-1 rounded"
+                style={{
+                  color: palette.headerLink,
+                  border: "2px solid #cc0000",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.color = palette.headerLinkHover)
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = palette.headerLink)
+                }
+              >
+                Admin Portal
+              </Link>
+            )}
           </nav>
 
           {/* RIGHT: USER INFO */}
-          <div className="hidden md:flex items-center gap-6 text-header-text">
+          <div className="hidden md:flex items-center gap-6">
             {user && (
               <div className="flex flex-col text-right leading-tight">
-                <span className="font-semibold text-sm">{userName}</span>
-                <span className="text-xs text-header-text-muted">
+                <span
+                  className="font-semibold text-sm"
+                  style={{ color: palette.headerText }}
+                >
+                  {userName}
+                </span>
+                <span
+                  className="text-xs"
+                  style={{ color: palette.headerTextMuted }}
+                >
                   {membershipLabel}
                 </span>
               </div>
@@ -138,7 +241,14 @@ export default function Header({ club }) {
             {user ? (
               <button
                 onClick={handleLogout}
-                className="text-sm font-semibold hover:text-header-link-hover transition"
+                className="text-sm font-semibold transition"
+                style={{ color: palette.headerLink }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.color = palette.headerLinkHover)
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = palette.headerLink)
+                }
               >
                 Logout
               </button>
@@ -146,7 +256,14 @@ export default function Header({ club }) {
               club?.slug && (
                 <Link
                   to={`/${club.slug}/login/`}
-                  className="text-sm font-semibold no-underline text-header-link hover:text-header-link-hover transition"
+                  className="text-sm font-semibold no-underline transition"
+                  style={{ color: palette.headerLink }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = palette.headerLinkHover)
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = palette.headerLink)
+                  }
                 >
                   Login
                 </Link>
@@ -158,7 +275,14 @@ export default function Header({ club }) {
           <button
             aria-label={open ? "Close menu" : "Open menu"}
             onClick={() => setOpen((o) => !o)}
-            className="md:hidden justify-self-end p-2 rounded-md text-header-link hover:bg-surface-alt transition"
+            className="md:hidden p-2 rounded-md transition"
+            style={{ color: palette.headerLink }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.color = palette.headerLinkHover)
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.color = palette.headerLink)
+            }
           >
             <svg
               className="h-7 w-7"
@@ -175,85 +299,13 @@ export default function Header({ club }) {
           </button>
         </div>
 
-        {/* ACCENT STRIPE */}
-        <div className="h-1 w-full bg-header-accent" />
-
-        {/* MOBILE NAV */}
-        {open && (
-          <div className="md:hidden bg-header-bg border-b border-border shadow-sm">
-            <div className="px-4 py-3 space-y-2 font-medium text-header-link">
-              <Link
-                to={homePath}
-                className="block py-2 no-underline text-header-link hover:text-header-link-hover transition"
-                onClick={() => setOpen(false)}
-              >
-                Home
-              </Link>
-
-              {club?.slug && (
-                <Link
-                  to={`/${club.slug}/events/`}
-                  className="block py-2 no-underline text-header-link hover:text-header-link-hover transition"
-                  onClick={() => setOpen(false)}
-                >
-                  Events
-                </Link>
-              )}
-
-              {club?.slug && (
-                <Link
-                  to={`/${club.slug}/membership/`}
-                  className="block py-2 no-underline text-header-link hover:text-header-link-hover transition"
-                  onClick={() => setOpen(false)}
-                >
-                  Membership
-                </Link>
-              )}
-
-              {/* ⭐ ADMIN PORTAL (mobile) */}
-              {isAdmin && club?.slug && (
-                <Link
-                  to={`/${club.slug}/admin/`}
-                  className="block py-2 no-underline text-header-link hover:text-header-link-hover transition"
-                  onClick={() => setOpen(false)}
-                >
-                  Admin Portal
-                </Link>
-              )}
-
-              {user && (
-                <div className="pt-3 border-t border-border">
-                  <div className="text-sm font-semibold text-header-link">
-                    {userName}
-                  </div>
-                  <div className="text-xs text-header-text-muted mb-3">
-                    {membershipLabel}
-                  </div>
-
-                  <button
-                    onClick={async () => {
-                      await handleLogout();
-                      setOpen(false);
-                    }}
-                    className="text-sm font-semibold hover:text-header-link-hover transition"
-                  >
-                    Logout
-                  </button>
-                </div>
-              )}
-
-              {!user && club?.slug && (
-                <Link
-                  to={`/${club.slug}/login/`}
-                  className="block py-2 no-underline text-header-link hover:text-header-link-hover transition"
-                  onClick={() => setOpen(false)}
-                >
-                  Login
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
+        {/* REVERSED GRADIENT STRIPE */}
+        <div
+          className="h-1 w-full"
+          style={{
+            background: "linear-gradient(315deg, #2e3192, #00aeef, #2e3192)",
+          }}
+        />
       </header>
     </>
   );

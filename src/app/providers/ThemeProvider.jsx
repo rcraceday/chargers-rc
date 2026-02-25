@@ -1,54 +1,105 @@
 // src/app/providers/ThemeProvider.jsx
-import { useEffect } from "react";
+import { createContext, useContext, useMemo } from "react";
 
-export default function ThemeProvider({ children }) {
-  useEffect(() => {
-    const root = document.documentElement;
+export const ThemeContext = createContext(null);
 
-    /* BRAND COLORS */
-    root.style.setProperty("--brand-surface", "#0d0d12");
-    root.style.setProperty("--brand-surface-alt", "#0f1a2e");
+export default function ThemeProvider({ mode = "drivers", clubTheme = {}, children }) {
+  //
+  // 1. Base neutral palette (global)
+  //
+  const base = {
+    background: "#ffffff",
+    backgroundImage: null,
+    backgroundMode: "full",
 
-    root.style.setProperty("--brand-text", "#ffffff");
-    root.style.setProperty("--brand-text-muted", "#b3b3b3");
+    text: "#1f2937",
+    textMuted: "#6b7280",
 
-    root.style.setProperty("--brand-primary", "#00438a");
-    root.style.setProperty("--brand-secondary", "#66A8FF");
-    root.style.setProperty("--brand-accent", "#FFC300");
+    surface: "#ffffff",
+    surfaceAlt: "#f9fafb",
+    surfaceBorder: "#e5e7eb",
 
-    root.style.setProperty("--brand-border", "#1f2a38");
+    // Header defaults (overridden by mode palettes)
+    headerAccent: "#e5e7eb",
+    headerLink: "#1f2937",
+    headerLinkHover: "#00438a",
+    headerLinkActive: "#00438a",
+    headerText: "#1f2937",
+    headerTextMuted: "#6b7280",
+  };
 
-    /* HEADER COLORS */
-    root.style.setProperty("--header-bg", "#ffffff");
+  //
+  // 2. Drivers Portal palette (Chargers Blue + Electric Glow)
+  //
+  const drivers = {
+    primary: "#00438a",
+    primarySoft: "#0a5bb8",
 
-    root.style.setProperty("--header-text", "#111111");
-    root.style.setProperty("--header-text-muted", "#555555");
+    brandPrimary: "#00438a",
+    brandSecondary: "#0a5bb8",
 
-    root.style.setProperty("--header-link", "#111111");
-    root.style.setProperty("--header-link-hover", "#0086df");
+    // ELECTRIC GLOW (2e3192 → 00aeef)
+    cardBorder: "rgba(46, 49, 146, 0.35)", // #2e3192
+    cardGlow: `
+      0 0 12px rgba(46, 49, 146, 0.45),
+      0 0 22px rgba(0, 174, 239, 0.35)
+    `,
 
-    /* ⭐ ACTIVE LINK — NOT BLUE */
-    root.style.setProperty("--header-link-active", "#8a0000");
+    // Header colours (Option B)
+    headerAccent: "#00438a",
+    headerLink: "#1f2937",
+    headerLinkHover: "#0a5bb8",
+    headerLinkActive: "#00438a",
+    headerText: "#1f2937",
+    headerTextMuted: "#6b7280",
+  };
 
-    /* Stripe stays blue */
-    root.style.setProperty("--header-accent", "var(--brand-primary)");
+  //
+  // 3. Admin Portal palette (Red)
+  //
+  const admin = {
+    primary: "#b91c1c",
+    primarySoft: "#ef4444",
 
-    /* TYPOGRAPHY */
-    root.style.setProperty("--font-family", "var(--site-font)");
-    root.style.setProperty("--font-size-base", "16px");
-    root.style.setProperty("--font-size-sm", "14px");
-    root.style.setProperty("--font-size-lg", "18px");
+    brandPrimary: "#b91c1c",
+    brandSecondary: "#ef4444",
 
-    root.style.setProperty("--font-weight-normal", "400");
-    root.style.setProperty("--font-weight-medium", "500");
-    root.style.setProperty("--font-weight-bold", "600");
+    cardBorder: "rgba(185, 28, 28, 0.35)",
+    cardGlow: `
+      0 0 12px rgba(185, 28, 28, 0.45),
+      0 0 22px rgba(239, 68, 68, 0.35)
+    `,
 
-    /* HEADINGS */
-    root.style.setProperty("--heading-xl", "2rem");
-    root.style.setProperty("--heading-lg", "1.5rem");
-    root.style.setProperty("--heading-md", "1.25rem");
-    root.style.setProperty("--heading-sm", "1.125rem");
-  }, []);
+    headerAccent: "#b91c1c",
+    headerLink: "#1f2937",
+    headerLinkHover: "#ef4444",
+    headerLinkActive: "#b91c1c",
+    headerText: "#1f2937",
+    headerTextMuted: "#6b7280",
+  };
 
-  return children;
+  //
+  // 4. Select palette based on mode
+  //
+  const modePalette = mode === "admin" ? admin : drivers;
+
+  //
+  // 5. Merge everything
+  //
+  const theme = useMemo(() => {
+    return {
+      palette: {
+        ...base,
+        ...modePalette,
+        ...clubTheme,
+      },
+      mode,
+    };
+  }, [mode, clubTheme]);
+
+  return <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>;
+}
+
+export function useTheme() {
+  return useContext(ThemeContext);
 }

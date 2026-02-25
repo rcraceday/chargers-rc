@@ -1,7 +1,9 @@
 // src/app/pages/Home.jsx
 import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "@app/providers/AuthProvider";
-import trackHero from "@/assets/chargers_track_overhead.jpg";
+
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
 
 export default function Home() {
   const { club } = useOutletContext();
@@ -10,71 +12,61 @@ export default function Home() {
   const clubSlug = club?.slug;
   const isLoggedIn = !!user;
 
-  const logoSrc =
-    club?.logo_url ??
-    club?.logo ??
-    "/chargers-logo.png";
-
   return (
-    <div className="min-h-screen w-full bg-surface-alt text-text-base">
-      {/* HERO */}
-      <section className="relative w-full overflow-hidden rounded-b-3xl shadow-[0_24px_60px_rgba(0,0,0,0.8)]">
-        {/* Background image */}
-        <div className="absolute inset-0">
-          <img
-            src={trackHero}
-            alt="Chargers RC track"
-            className="w-full h-full object-cover blur-md scale-110"
-          />
-          {/* Dark gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/75 to-black/95" />
-          {/* Carbon-fibre style texture */}
-          <div className="absolute inset-0 opacity-30 mix-blend-overlay bg-[radial-gradient(circle_at_0_0,#ffffff12,transparent_40%),radial-gradient(circle_at_100%_100%,#ffffff12,transparent_40%)]" />
-        </div>
+    <div className="min-h-screen w-full bg-background text-text-base">
 
-        {/* Foreground content */}
-        <div className="relative px-5 pt-16 pb-12 flex flex-col items-center text-center text-white">
-          {/* Accent glow bar */}
-          <div className="mb-6 h-1.5 w-24 rounded-full bg-brand-primary shadow-[0_0_25px_rgba(0,114,206,0.9)]" />
+      {/* HERO — Chargers Blue, White Text, Thin Outline, Centered */}
+      <section className="w-full bg-surface border-b border-surfaceBorder">
+        <div className="max-w-6xl mx-auto px-4 pt-10 pb-10">
 
-          <img
-            src={logoSrc}
-            alt={`${club?.name ?? "Club"} logo`}
-            className="h-28 w-auto mb-5 object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.9)]"
-          />
+          {/* OUTER WRAPPER WITH THIN OUTLINE + SHADOW */}
+          <div
+            className="rounded-lg"
+            style={{
+              padding: "1px",
+              background:
+                "linear-gradient(315deg, #2e3192, #00aeef, #2e3192)",
+              boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
+            }}
+          >
+            {/* INNER HERO */}
+            <div
+              className="
+                rounded-md
+                flex items-center justify-center text-center
+              "
+              style={{
+                background: "#00438A",
+                padding: "35px 16px 23px 16px",
+                // ↑ bumped top padding by another ~2px (33 → 35)
+              }}
+            >
+              <h1
+                className="text-3xl font-semibold tracking-tight"
+                style={{ color: "white" }}
+              >
+                Welcome to Chargers RC Driver Portal
+              </h1>
+            </div>
+          </div>
 
-          <h1 className="text-3xl font-semibold tracking-tight mb-2">
-            {club?.name ?? "Your Club"}
-          </h1>
-
-          <p className="text-brand-primary text-sm font-medium mb-4">
-            Queensland&apos;s Premier 1/10th Off Road Racing RC Club
-          </p>
-
-          <p className="text-xs text-white/70">
-            {isLoggedIn ? (
-              <span className="text-brand-primary font-medium">
-                You&apos;re logged in
-              </span>
-            ) : (
-              <span>Browsing as guest</span>
-            )}
-          </p>
         </div>
       </section>
 
       {/* MAIN CONTENT */}
-      <main className="px-4 py-8 space-y-8 max-w-4xl mx-auto">
+      <main className="max-w-6xl mx-auto px-4 pt-10 pb-12 space-y-10">
+
         {/* CLUB NEWS */}
         <section>
           <h2 className="text-sm font-semibold tracking-[0.18em] uppercase text-text-muted mb-3">
             Club News
           </h2>
-          <div className="bg-[rgba(15,18,30,0.95)] rounded-2xl border border-white/5 p-4 shadow-[0_18px_45px_rgba(0,0,0,0.65)]">
-            <p className="text-xs text-text-muted leading-relaxed">
+
+          <Card>
+            <p className="text-text-muted leading-relaxed">
               No news posted yet. Stay tuned for updates from the club.
             </p>
-          </div>
+          </Card>
         </section>
 
         {/* NEXT EVENT */}
@@ -82,11 +74,12 @@ export default function Home() {
           <h2 className="text-sm font-semibold tracking-[0.18em] uppercase text-text-muted mb-3">
             Next Event
           </h2>
-          <div className="bg-[rgba(15,18,30,0.95)] rounded-2xl border border-white/5 p-4 shadow-[0_18px_45px_rgba(0,0,0,0.65)]">
-            <p className="text-xs text-text-muted leading-relaxed">
+
+          <Card>
+            <p className="text-text-muted leading-relaxed">
               The next event will appear here once scheduled.
             </p>
-          </div>
+          </Card>
         </section>
 
         {/* QUICK ACTIONS */}
@@ -96,45 +89,48 @@ export default function Home() {
           </h2>
 
           <div className="grid grid-cols-2 gap-4">
+
+            {/* EVENTS */}
             {clubSlug && (
-              <Link
-                to={`/${clubSlug}/events`}
-                className="bg-[rgba(15,18,30,0.98)] rounded-2xl border border-white/5 px-3 py-4 text-center text-xs font-semibold text-white shadow-[0_18px_45px_rgba(0,0,0,0.7)] active:scale-[0.97] transition-transform hover:border-brand-primary/70 hover:text-brand-secondary"
-              >
-                Events
-              </Link>
+              <Card className="text-center">
+                <Link to={`/${clubSlug}/events`}>
+                  Events
+                </Link>
+              </Card>
             )}
 
+            {/* CALENDAR */}
             {clubSlug && (
-              <Link
-                to={`/${clubSlug}/calendar`}
-                className="bg-[rgba(15,18,30,0.98)] rounded-2xl border border-white/5 px-3 py-4 text-center text-xs font-semibold text-white shadow-[0_18px_45px_rgba(0,0,0,0.7)] active:scale-[0.97] transition-transform hover:border-brand-primary/70 hover:text-brand-secondary"
-              >
-                Calendar
-              </Link>
+              <Card className="text-center">
+                <Link to={`/${clubSlug}/calendar`}>
+                  Calendar
+                </Link>
+              </Card>
             )}
 
-            <div className="bg-[rgba(10,12,20,0.98)] rounded-2xl border border-white/5 px-3 py-4 text-center text-[0.7rem] text-text-muted shadow-[0_14px_35px_rgba(0,0,0,0.7)]">
+            {/* NOMINATE */}
+            {clubSlug && (
+              <Card className="text-center">
+                <Link to={`/${clubSlug}/nominate`}>
+                  Nominate
+                </Link>
+              </Card>
+            )}
+
+            {/* RESULTS */}
+            <Card className="text-center text-text-muted">
               Results (members only)
-            </div>
+            </Card>
 
+            {/* MEMBERSHIP */}
             {clubSlug && (
-              <Link
-                to={`/${clubSlug}/profile/drivers`}
-                className="bg-[rgba(15,18,30,0.98)] rounded-2xl border border-white/5 px-3 py-4 text-center text-xs font-semibold text-white shadow-[0_18px_45px_rgba(0,0,0,0.7)] active:scale-[0.97] transition-transform hover:border-brand-primary/70 hover:text-brand-secondary"
-              >
-                Driver Manager
-              </Link>
+              <Card className="text-center col-span-2">
+                <Link to={`/${clubSlug}/membership`}>
+                  Membership
+                </Link>
+              </Card>
             )}
 
-            {clubSlug && (
-              <Link
-                to={`/${clubSlug}/membership`}
-                className="bg-[rgba(15,18,30,0.98)] rounded-2xl border border-white/5 px-3 py-4 text-center text-xs font-semibold text-white shadow-[0_18px_45px_rgba(0,0,0,0.7)] active:scale-[0.97] transition-transform hover:border-brand-primary/70 hover:text-brand-secondary col-span-2"
-              >
-                Membership
-              </Link>
-            )}
           </div>
         </section>
 
@@ -146,22 +142,28 @@ export default function Home() {
             </h2>
 
             <div className="flex flex-col gap-3">
-              <Link
-                to={`/${clubSlug}/login`}
-                className="w-full text-center text-xs font-semibold rounded-2xl border border-white/10 bg-[rgba(18,22,32,0.98)] text-white py-3 shadow-[0_16px_40px_rgba(0,0,0,0.75)] active:scale-[0.97] transition-transform hover:border-brand-primary/70"
-              >
-                Member Login
-              </Link>
 
-              <Link
+              <Card className="p-0">
+                <Link
+                  to={`/${clubSlug}/login`}
+                  className="block w-full text-center py-3"
+                >
+                  Member Login
+                </Link>
+              </Card>
+
+              <Button
+                as={Link}
                 to={`/${clubSlug}/signup`}
-                className="w-full text-center text-xs font-semibold rounded-2xl bg-brand-primary text-white py-3 shadow-[0_18px_45px_rgba(0,114,206,0.9)] active:scale-[0.97] transition-transform hover:bg-brand-secondary"
+                className="w-full text-center py-3"
               >
                 Create Account
-              </Link>
+              </Button>
+
             </div>
           </section>
         )}
+
       </main>
     </div>
   );

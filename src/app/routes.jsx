@@ -22,13 +22,18 @@ import DriverProfile from "@app/pages/profile/DriverProfile";
 import AddDriver from "@app/pages/profile/AddDriver";
 import EditDriver from "@app/pages/profile/EditDriver";
 
-// ⭐ NEW — Admin Dashboard
 import AdminDashboard from "@app/pages/admin/AdminDashboard";
+import AdminLayout from "@app/pages/admin/AdminLayout";
+
+// Championships
+import ChampionshipsList from "@app/pages/admin/championships/ChampionshipsList";
+import CreateChampionship from "@app/pages/admin/championships/CreateChampionship";
 
 export default function RoutesFile() {
   return (
     <Routes>
       <Route path="/:clubSlug/*" element={<ClubLayout />}>
+        {/* Public + Member Pages */}
         <Route path="login" element={<Login />} />
         <Route path="signup" element={<Signup />} />
         <Route path="welcome" element={<Welcome />} />
@@ -44,8 +49,14 @@ export default function RoutesFile() {
         <Route path="profile/drivers/:id/edit" element={<EditDriver />} />
         <Route path="profile/drivers/:id" element={<DriverProfile />} />
 
-        {/* ⭐ NEW — Admin Dashboard Route */}
-        <Route path="admin" element={<AdminDashboard />} />
+        {/* ADMIN AREA */}
+        <Route path="admin" element={<AdminLayout />}>
+          <Route index element={<AdminDashboard />} />
+
+          {/* Championships */}
+          <Route path="championships" element={<ChampionshipsList />} />
+          <Route path="championships/create" element={<CreateChampionship />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<div>Page not found.</div>} />

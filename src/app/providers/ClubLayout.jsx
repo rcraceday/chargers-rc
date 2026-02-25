@@ -2,8 +2,11 @@
 console.log("ClubLayout: start render");
 
 import { useEffect, useState } from "react";
-import { Outlet, useParams } from "react-router-dom";
+import { Outlet, useParams, useLocation } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
+
+import ThemeProvider from "@/app/providers/ThemeProvider";
+import UnifiedLayout from "@/layouts/UnifiedLayout";
 
 import MembershipProvider from "@/app/providers/MembershipProvider";
 import ProfileProvider from "@/app/providers/ProfileProvider";
@@ -14,6 +17,8 @@ import Header from "@/components/ui/Header";
 
 export default function ClubLayout() {
   const { clubSlug } = useParams();
+  const location = useLocation();
+  const isAdminRoute = location.pathname.includes("/admin");
 
   const [loadingClub, setLoadingClub] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -25,6 +30,9 @@ export default function ClubLayout() {
   // LOAD CLUB
   useEffect(() => {
     let mounted = true;
+
+    // ⭐ Prevent invalid fetch
+    if (!clubSlug) return;
 
     const loadClub = async () => {
       setLoadingClub(true);
@@ -107,17 +115,21 @@ export default function ClubLayout() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-[var(--background)] text-[var(--text)]">
+    <ThemeProvider mode="drivers">
       <MembershipProvider user={user} club={club}>
         <ProfileProvider user={user}>
           <DriverProvider>
             <NumberProvider>
-              <Header club={club} user={user} />
-              <Outlet context={{ club, user }} />
+
+              <UnifiedLayout>
+                {!isAdminRoute && <Header club={club} user={user} />}
+                <Outlet context={{ club, user }} />
+              </UnifiedLayout>
+
             </NumberProvider>
           </DriverProvider>
         </ProfileProvider>
       </MembershipProvider>
-    </div>
+    </ThemeProvider>
   );
 }
