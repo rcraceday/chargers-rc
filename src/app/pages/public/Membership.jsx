@@ -124,12 +124,14 @@ export default function Membership() {
 
             <div className="rounded-xl border border-gray-200 bg-white p-5">
               <ul className="list-disc ml-5 text-sm text-text-muted space-y-1">
-                <li>Access to all club racing events</li>
-                <li>Driver profiles and race history</li>
-                <li>Setup sharing and tuning notes</li>
-                <li>Discounted entry fees</li>
-                <li>Support track maintenance and improvements</li>
-              </ul>
+                <li>50% off race fees</li>
+                <li>Insurance coverage</li>
+                <li>Junior members race free</li>
+                <li>Access to RCRA sanctioned events</li>        
+                <li>Helps increase the clubs profile for council and government investment</li>
+                <li>Voting rights at AGM</li>
+
+           = </ul>
             </div>
           </section>
         )}

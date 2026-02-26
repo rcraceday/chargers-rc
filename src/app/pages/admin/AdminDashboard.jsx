@@ -1,12 +1,20 @@
 import { Link, useParams } from "react-router-dom";
+import {
+  IdentificationIcon,
+  CalendarDaysIcon,
+  TrophyIcon,
+  UserGroupIcon,
+} from "@heroicons/react/24/outline";
+
+import Card from "@/components/ui/Card";
 
 export default function AdminDashboard() {
   const { clubSlug } = useParams();
 
   return (
-    <div className="min-h-screen w-full bg-[#f7f7f7] text-gray-900">
+    <>
       {/* PAGE HEADER */}
-      <header className="max-w-6xl mx-auto px-4 pt-10 pb-6">
+      <header className="mb-8">
         <h1 className="text-3xl font-semibold tracking-tight">
           Admin Dashboard
         </h1>
@@ -15,60 +23,62 @@ export default function AdminDashboard() {
         </p>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 pb-16 space-y-12">
-        {/* ========================= */}
-        {/*   QUICK STATS ROW        */}
-        {/* ========================= */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard
-            label="Active Members"
-            value="—"
-            description="Members with valid memberships"
-          />
+      {/* ========================= */}
+      {/*   QUICK STATS ROW        */}
+      {/* ========================= */}
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
+        <StatCard
+          label="Active Members"
+          value="—"
+          description="Members with valid memberships"
+        />
 
-          <StatCard
-            label="Upcoming Events"
-            value="—"
-            description="Events scheduled in the calendar"
-          />
+        <StatCard
+          label="Upcoming Events"
+          value="—"
+          description="Events scheduled in the calendar"
+        />
 
-          <StatCard
-            label="Pending Nominations"
-            value="—"
-            description="Drivers awaiting approval"
-          />
-        </section>
+        <StatCard
+          label="Current Event Nominations"
+          value="—"
+          description="Nominations for the next upcoming event"
+        />
+      </section>
 
-        {/* ========================= */}
-        {/*   MAIN ACTION GRID       */}
-        {/* ========================= */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <AdminCard
-            title="Memberships"
-            description="Manage member records, renewals, and upgrades"
-            to={`/${clubSlug}/admin/memberships`}
-          />
+      {/* ========================= */}
+      {/*   MAIN ACTION GRID       */}
+      {/* ========================= */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <AdminCard
+          title="Memberships"
+          description="Manage member records, renewals, and upgrades"
+          to={`/${clubSlug}/admin/memberships`}
+          icon={IdentificationIcon}
+        />
 
-          <AdminCard
-            title="Events"
-            description="Create, edit, and manage club events"
-            to={`/${clubSlug}/admin/events`}
-          />
+        <AdminCard
+          title="Events"
+          description="Create, edit, and manage club events"
+          to={`/${clubSlug}/admin/events`}
+          icon={CalendarDaysIcon}
+        />
 
-          <AdminCard
-            title="Championships"
-            description="Manage championship seasons and scoring"
-            to={`/${clubSlug}/admin/championships`}
-          />
+        <AdminCard
+          title="Championships"
+          description="Manage championship seasons and scoring"
+          to={`/${clubSlug}/admin/championships`}
+          icon={TrophyIcon}
+        />
 
-          <AdminCard
-            title="Drivers"
-            description="Manage driver profiles and linked accounts"
-            to={`/${clubSlug}/admin/drivers`}
-          />
-        </section>
-      </main>
-    </div>
+        <AdminCard
+          title="Drivers"
+          description="Manage driver profiles and linked accounts"
+          to={`/${clubSlug}/admin/drivers`}
+          icon={UserGroupIcon}
+        />
+      </section>
+    </>
   );
 }
 
@@ -86,21 +96,18 @@ function StatCard({ label, value, description }) {
   );
 }
 
-function AdminCard({ title, description, to }) {
+function AdminCard({ title, description, to, icon: Icon }) {
   return (
-    <Link to={to} className="block">
-      <div
-        className="
-          rounded-xl border p-[2px] 
-          bg-gradient-to-br from-red-500/40 via-red-400/20 to-red-500/40
-          hover:shadow-md transition-shadow
-        "
-      >
-        <div className="rounded-lg bg-white p-6 h-full">
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-          <p className="text-sm text-gray-500 mt-1">{description}</p>
+    <Link to={to} className="block no-underline">
+      <Card>
+        <div className="flex items-center gap-4">
+          <Icon className="h-7 w-7 text-[#C62828]" />
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <p className="text-sm text-gray-500 mt-1">{description}</p>
+          </div>
         </div>
-      </div>
+      </Card>
     </Link>
   );
 }

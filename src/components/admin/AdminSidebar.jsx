@@ -1,61 +1,82 @@
 // src/components/admin/AdminSidebar.jsx
-import { useState } from "react";
-import { useTheme } from "@/app/providers/ThemeProvider";
-import { Link } from "react-router-dom";
+import { NavLink, useParams } from "react-router-dom";
+import {
+  UserGroupIcon,
+  CalendarDaysIcon,
+  TrophyIcon,
+  IdentificationIcon,
+  Cog6ToothIcon,
+} from "@heroicons/react/24/outline";
 
 export default function AdminSidebar() {
-  const { palette } = useTheme();
-  const [open, setOpen] = useState(false);
+  const { clubSlug } = useParams();
 
-  const sidebarStyle = {
-    background: "#ffffff",
-    borderRight: `2px solid ${palette.primary}`,
-    width: "260px",
-  };
+  const navItems = [
+    {
+      label: "Dashboard",
+      to: `/${clubSlug}/admin`,
+      icon: UserGroupIcon,
+    },
+    {
+      label: "Memberships",
+      to: `/${clubSlug}/admin/memberships`,
+      icon: IdentificationIcon,
+    },
+    {
+      label: "Events",
+      to: `/${clubSlug}/admin/events`,
+      icon: CalendarDaysIcon,
+    },
+    {
+      label: "Championships",
+      to: `/${clubSlug}/admin/championships`,
+      icon: TrophyIcon,
+    },
+    {
+      label: "Drivers",
+      to: `/${clubSlug}/admin/drivers`,
+      icon: UserGroupIcon,
+    },
+    {
+      label: "Settings",
+      to: `/${clubSlug}/admin/settings`,
+      icon: Cog6ToothIcon,
+    },
+  ];
 
   return (
-    <>
-      {/* Mobile toggle */}
-      <button
-        className="md:hidden fixed top-4 left-4 z-50 bg-white shadow px-3 py-2 rounded"
-        onClick={() => setOpen(true)}
-      >
-        Menu
-      </button>
-
-      {/* Mobile overlay */}
-      {open && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden"
-          onClick={() => setOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`
-          fixed md:static top-0 left-0 h-full z-50
-          transform transition-transform duration-300
-          ${open ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-        `}
-        style={sidebarStyle}
-      >
-        <div className="p-6 font-bold text-lg" style={{ color: palette.primary }}>
-          Admin Panel
-        </div>
-
-        <nav className="flex flex-col gap-2 p-4">
-          <Link to="dashboard" className="text-gray-800 hover:text-black">
-            Dashboard
-          </Link>
-          <Link to="championships" className="text-gray-800 hover:text-black">
-            Championships
-          </Link>
-          <Link to="/" className="text-gray-800 hover:text-black">
-            Back to Club
-          </Link>
-        </nav>
-      </aside>
-    </>
+    <aside
+      className="
+        w-56
+        bg-white
+        border-r border-gray-200
+        flex flex-col
+        py-6
+      "
+    >
+      <nav className="flex-1 px-4 space-y-1">
+        {navItems.map(({ label, to, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end
+            className={({ isActive }) =>
+              `
+              flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium
+              transition-colors
+              ${
+                isActive
+                  ? "bg-red-50 text-red-700 border border-red-200"
+                  : "text-gray-700 hover:bg-gray-100"
+              }
+            `
+            }
+          >
+            <Icon className="h-5 w-5" />
+            {label}
+          </NavLink>
+        ))}
+      </nav>
+    </aside>
   );
 }

@@ -5,6 +5,14 @@ import { useAuth } from "@app/providers/AuthProvider";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 
+import {
+  CalendarDaysIcon,
+  ClipboardDocumentListIcon,
+  UserGroupIcon,
+  IdentificationIcon,
+  TrophyIcon,
+} from "@heroicons/react/24/outline";
+
 export default function Home() {
   const { club } = useOutletContext();
   const { user } = useAuth();
@@ -92,8 +100,16 @@ export default function Home() {
             {/* EVENTS */}
             {clubSlug && (
               <Card className="text-center">
-                <Link to={`/${clubSlug}/events`}>
-                  Events
+                <Link
+                  to={`/${clubSlug}/events`}
+                  className="block no-underline"
+                >
+                  <div className="flex items-center justify-center gap-4 py-2">
+                    <CalendarDaysIcon className="h-7 w-7 text-blue-700" />
+                    <span className="text-base text-text-base">
+                      Events
+                    </span>
+                  </div>
                 </Link>
               </Card>
             )}
@@ -101,8 +117,16 @@ export default function Home() {
             {/* CALENDAR */}
             {clubSlug && (
               <Card className="text-center">
-                <Link to={`/${clubSlug}/calendar`}>
-                  Calendar
+                <Link
+                  to={`/${clubSlug}/calendar`}
+                  className="block no-underline"
+                >
+                  <div className="flex items-center justify-center gap-4 py-2">
+                    <ClipboardDocumentListIcon className="h-7 w-7 text-blue-700" />
+                    <span className="text-base text-text-base">
+                      Calendar
+                    </span>
+                  </div>
                 </Link>
               </Card>
             )}
@@ -110,22 +134,43 @@ export default function Home() {
             {/* NOMINATE */}
             {clubSlug && (
               <Card className="text-center">
-                <Link to={`/${clubSlug}/nominate`}>
-                  Nominate
+                <Link
+                  to={`/${clubSlug}/nominate`}
+                  className="block no-underline"
+                >
+                  <div className="flex items-center justify-center gap-4 py-2">
+                    <UserGroupIcon className="h-7 w-7 text-blue-700" />
+                    <span className="text-base text-text-base">
+                      Nominate
+                    </span>
+                  </div>
                 </Link>
               </Card>
             )}
 
             {/* RESULTS */}
             <Card className="text-center text-text-muted">
-              Results (members only)
+              <div className="flex items-center justify-center gap-4 py-2">
+                <TrophyIcon className="h-7 w-7 text-gray-400" />
+                <span className="text-base">
+                  Results (members only)
+                </span>
+              </div>
             </Card>
 
             {/* MEMBERSHIP */}
             {clubSlug && (
               <Card className="text-center col-span-2">
-                <Link to={`/${clubSlug}/membership`}>
-                  Membership
+                <Link
+                  to={`/${clubSlug}/membership`}
+                  className="block no-underline"
+                >
+                  <div className="flex items-center justify-center gap-4 py-2">
+                    <IdentificationIcon className="h-7 w-7 text-blue-700" />
+                    <span className="text-base text-text-base">
+                      Membership
+                    </span>
+                  </div>
                 </Link>
               </Card>
             )}

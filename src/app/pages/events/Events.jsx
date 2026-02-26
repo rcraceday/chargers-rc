@@ -16,7 +16,14 @@ function formatDate(dateString) {
 export default function Events() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all"); // ⭐ race / practice / meeting / all
+
+  // ⭐ Filters
+  const [query, setQuery] = useState("");
+  const [trackFilter, setTrackFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all"); // open / closed
+  const [sortOrder, setSortOrder] = useState("asc"); // asc / desc
+
   const { clubSlug } = useParams();
 
   useEffect(() => {
@@ -44,16 +51,53 @@ export default function Events() {
   const upcoming = events.filter((e) => new Date(e.event_date) >= now);
   const past = events.filter((e) => new Date(e.event_date) < now);
 
-  // ⭐ Apply filter
-  const filteredUpcoming = useMemo(() => {
-    if (filter === "all") return upcoming;
-    return upcoming.filter((e) => (e.type || "race") === filter);
-  }, [upcoming, filter]);
+  // ⭐ Apply search + dropdown filters (forgiving + robust)
+  function applyFilters(list) {
+    return list.filter((e) => {
+      const q = query.toLowerCase();
 
-  const filteredPast = useMemo(() => {
-    if (filter === "all") return past;
-    return past.filter((e) => (e.type || "race") === filter);
-  }, [past, filter]);
+      const name = (e.event_name || e.name || "").toLowerCase();
+      const track = (e.track_type || e.track || "").toLowerCase();
+      const type = (e.event_type || e.type || "").toLowerCase();
+      const dateStr = formatDate(e.event_date).toLowerCase();
+      const isOpen = e.is_open === true;
+
+      const matchesQuery =
+        !q ||
+        name.includes(q) ||
+        track.includes(q) ||
+        dateStr.includes(q);
+
+      const matchesTrack =
+        trackFilter === "all" || track.includes(trackFilter);
+
+      const matchesType =
+        typeFilter === "all" || type.includes(typeFilter);
+
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "open" && isOpen) ||
+        (statusFilter === "closed" && !isOpen);
+
+      return matchesQuery && matchesTrack && matchesType && matchesStatus;
+    });
+  }
+
+  // ⭐ Apply filters
+  let filteredUpcoming = applyFilters(upcoming);
+  let filteredPast = applyFilters(past);
+
+  // ⭐ Apply sorting
+  function sortList(list) {
+    return [...list].sort((a, b) => {
+      const da = new Date(a.event_date);
+      const db = new Date(b.event_date);
+      return sortOrder === "asc" ? da - db : db - da;
+    });
+  }
+
+  filteredUpcoming = sortList(filteredUpcoming);
+  filteredPast = sortList(filteredPast);
 
   // ⭐ Group by Year → Month
   function groupByYearMonth(list) {
@@ -93,6 +137,15 @@ export default function Events() {
     textTransform: "capitalize",
     display: "inline-block",
   });
+
+  // ⭐ Clear Filters
+  function clearFilters() {
+    setQuery("");
+    setTrackFilter("all");
+    setTypeFilter("all");
+    setStatusFilter("all");
+    setSortOrder("asc");
+  }
 
   return (
     <div className="min-h-screen w-full bg-background text-text-base">
@@ -139,19 +192,67 @@ export default function Events() {
           </h2>
 
           <div className="flex gap-3 flex-wrap">
-            {["all", "race", "practice", "meeting"].map((t) => (
-              <button
-                key={t}
-                onClick={() => setFilter(t)}
-                className="px-4 py-2 rounded-md text-sm font-medium transition-all"
-                style={{
-                  background: filter === t ? "#00438A" : "#e5e7eb",
-                  color: filter === t ? "white" : "#374151",
-                }}
-              >
-                {t === "all" ? "All Events" : t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
-            ))}
+
+            {/* Search */}
+            <input
+              type="text"
+              placeholder="Search…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full sm:w-64 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+
+            {/* Track Type */}
+            <select
+              value={trackFilter}
+              onChange={(e) => setTrackFilter(e.target.value)}
+              className="w-full sm:w-40 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <option value="all">All Tracks</option>
+              <option value="dirt">Dirt</option>
+              <option value="sic">SIC</option>
+            </select>
+
+            {/* Event Type */}
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="w-full sm:w-40 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <option value="all">All Types</option>
+              <option value="race">Race</option>
+              <option value="practice">Practice</option>
+            </select>
+
+            {/* Open / Closed */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full sm:w-40 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <option value="all">All Status</option>
+              <option value="open">Open</option>
+              <option value="closed">Closed</option>
+            </select>
+
+            {/* Sort */}
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              className="w-full sm:w-40 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <option value="asc">Date ↑</option>
+              <option value="desc">Date ↓</option>
+            </select>
+
+            {/* Clear Filters */}
+            <button
+              onClick={clearFilters}
+              className="px-4 py-1.5 rounded-md text-sm font-medium bg-gray-200 hover:bg-gray-300 transition"
+            >
+              Clear
+            </button>
+
           </div>
         </section>
 
@@ -207,8 +308,8 @@ export default function Events() {
                                 {formatDate(event.event_date)}
                               </div>
 
-                              <span style={badgeStyle(event.type || "race")}>
-                                {event.type || "race"}
+                              <span style={badgeStyle((event.event_type || event.type || "race"))}>
+                                {event.event_type || event.type || "race"}
                               </span>
                             </div>
 
@@ -270,7 +371,7 @@ export default function Events() {
                             {event.event_logo && (
                               <div className="w-20 h-20 bg-white border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
                                 <img
-                                  src={event.event_logo}
+                                  src={event.event_event_logo}
                                   alt="Event Logo"
                                   className="w-full h-full object-contain"
                                 />
@@ -287,8 +388,8 @@ export default function Events() {
                                 {formatDate(event.event_date)}
                               </div>
 
-                              <span style={badgeStyle(event.type || "race")}>
-                                {event.type || "race"}
+                              <span style={badgeStyle((event.event_type || event.type || "race"))}>
+                                {event.event_type || event.type || "race"}
                               </span>
                             </div>
 

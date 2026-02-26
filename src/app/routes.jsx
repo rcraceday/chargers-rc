@@ -1,4 +1,3 @@
-// src/app/routes.jsx
 import { Routes, Route } from "react-router-dom";
 
 import ClubLayout from "@app/providers/ClubLayout";
@@ -34,6 +33,13 @@ import JoinMembership from "@app/pages/membership/JoinMembership";
 import RenewMembership from "@app/pages/membership/RenewMembership";
 import UpgradeMembership from "@app/pages/membership/UpgradeMembership";
 
+// ⭐ Admin Events (correct filenames)
+import AdminEvents from "@app/pages/admin/AdminEvents";
+import AdminEventEdit from "@app/pages/admin/AdminEventEdit";
+import AdminClassManager from "@app/pages/admin/AdminClassManager";
+import AdminEventNominations from "@app/pages/admin/nominations/AdminEventNominations";
+import NominationsExport from "@app/pages/admin/NominationsExport";
+
 export default function RoutesFile() {
   return (
     <Routes>
@@ -68,6 +74,14 @@ export default function RoutesFile() {
         {/* ADMIN AREA */}
         <Route path="admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
+
+          {/* ⭐ Admin Events */}
+          <Route path="events" element={<AdminEvents />} />
+          <Route path="events/new" element={<AdminEventEdit />} />
+          <Route path="events/:id" element={<AdminEventEdit />} />
+          <Route path="events/:id/classes" element={<AdminClassManager />} />
+          <Route path="events/:id/nominations" element={<AdminEventNominations />} />
+          <Route path="events/:id/nominations/export" element={<NominationsExport />} />
 
           {/* Championships */}
           <Route path="championships" element={<ChampionshipsList />} />

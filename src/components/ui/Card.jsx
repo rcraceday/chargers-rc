@@ -11,14 +11,14 @@ export default function Card({ children, className = "", ...props }) {
   const wrapperStyle = {
     borderRadius: `${RADIUS}px`,
     padding: `${BORDER_THICKNESS}px`,
-    background: "linear-gradient(135deg, #2e3192, #00aeef, #2e3192)",
+    background: palette.cardGradient,
     boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
     transition: "all 0.25s ease",
     cursor: "pointer",
   };
 
   const wrapperHoverStyle = {
-    background: "linear-gradient(135deg, #3a3db8, #14c8ff, #3a3db8)",
+    background: palette.cardGradientHover,
     boxShadow: "0 6px 14px rgba(0,0,0,0.22)",
   };
 
@@ -28,29 +28,17 @@ export default function Card({ children, className = "", ...props }) {
     padding: "18px",
     position: "relative",
     overflow: "hidden",
-
     fontSize: "1rem",
     lineHeight: "1.4",
     color: palette.textBase,
-
     textDecoration: "none",
-
-    "--reset-link": `
-      all: unset;
-      color: inherit;
-      text-decoration: none;
-      cursor: inherit;
-      display: block;
-    `,
-
     transition: "background 0.25s ease",
   };
 
   const innerHoverStyle = {
-    background: "#e6f4ff",
+    background: palette.cardInnerHover,
   };
 
-  // ⭐ Thin 1px bottom border (theme‑safe, subtle)
   const thinBottomBorderStyle = {
     position: "absolute",
     left: 0,
@@ -75,26 +63,8 @@ export default function Card({ children, className = "", ...props }) {
         if (inner) Object.assign(inner.style, innerStyle);
       }}
     >
-      <div
-        {...props}
-        className="card-inner"
-        style={innerStyle}
-      >
-        <style>
-          {`
-            .card-inner a {
-              all: unset;
-              color: inherit;
-              text-decoration: none;
-              cursor: inherit;
-              display: block;
-            }
-          `}
-        </style>
-
-        {/* ⭐ New subtle 1px bottom border */}
+      <div {...props} className="card-inner" style={innerStyle}>
         <div style={thinBottomBorderStyle} />
-
         {children}
       </div>
     </div>

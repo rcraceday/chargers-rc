@@ -168,7 +168,15 @@ export default function RenewMembership() {
               </button>
             </div>
 
-            <div className="flex justify-end">
+            {/* BUTTON ROW — Cancel + Continue */}
+            <div className="flex justify-between">
+              <button
+                onClick={() => navigate(`/${clubSlug}/membership`)}
+                className="rounded-md px-5 py-2.5 text-sm font-semibold border border-gray-200 bg-white text-text-base"
+              >
+                Cancel
+              </button>
+
               <button
                 onClick={handleContinue}
                 className="rounded-md px-5 py-2.5 text-sm font-semibold"

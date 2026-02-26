@@ -39,13 +39,18 @@ export default function ThemeProvider({ mode = "drivers", clubTheme = {}, childr
     brandSecondary: "#0a5bb8",
 
     // ELECTRIC GLOW (2e3192 → 00aeef)
-    cardBorder: "rgba(46, 49, 146, 0.35)", // #2e3192
+    cardBorder: "rgba(46, 49, 146, 0.35)",
     cardGlow: `
       0 0 12px rgba(46, 49, 146, 0.45),
       0 0 22px rgba(0, 174, 239, 0.35)
     `,
 
-    // Header colours (Option B)
+    // ⭐ NEW — Home card gradients + hover
+    cardGradient: "linear-gradient(135deg, #2e3192, #00aeef, #2e3192)",
+    cardGradientHover: "linear-gradient(135deg, #3a3db8, #14c8ff, #3a3db8)",
+    cardInnerHover: "#e6f4ff",
+
+    // Header colours
     headerAccent: "#00438a",
     headerLink: "#1f2937",
     headerLinkHover: "#0a5bb8",
@@ -70,6 +75,12 @@ export default function ThemeProvider({ mode = "drivers", clubTheme = {}, childr
       0 0 22px rgba(239, 68, 68, 0.35)
     `,
 
+    // ⭐ NEW — Admin card gradients + hover (RED)
+    cardGradient: "linear-gradient(135deg, #C62828, #E53935, #C62828)",
+    cardGradientHover: "linear-gradient(135deg, #D32F2F, #EF5350, #D32F2F)",
+    cardInnerHover: "#ffe6e6",
+
+    // Header colours
     headerAccent: "#b91c1c",
     headerLink: "#1f2937",
     headerLinkHover: "#ef4444",
