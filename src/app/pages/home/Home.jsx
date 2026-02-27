@@ -24,9 +24,6 @@ export default function Home() {
   const clubSlug = club?.slug;
   const isLoggedIn = !!user;
 
-  // -----------------------------
-  // NEXT EVENT FETCHING
-  // -----------------------------
   const [nextEvent, setNextEvent] = useState(null);
   const [loadingEvent, setLoadingEvent] = useState(true);
 
@@ -36,7 +33,7 @@ export default function Home() {
     async function fetchNextEvent() {
       setLoadingEvent(true);
 
-      const today = new Date().toISOString().split("T")[0]; // compare by date only
+      const today = new Date().toISOString().split("T")[0];
 
       const { data, error } = await supabase
         .from("events")
@@ -58,10 +55,9 @@ export default function Home() {
   }, [club?.id]);
 
   return (
-    <div className="w-full bg-background text-text-base font-[Poppins]">
+    <div className="w-full overflow-x-hidden bg-background text-text-base font-[Poppins]">
 
-      {/* MAIN CONTENT */}
-      <main className="max-w-xl mx-auto px-4 pt-8 pb-12 space-y-10">
+      <main className="w-full max-w-screen-sm mx-auto px-4 pt-8 pb-12 space-y-10">
 
         {/* CLUB NEWS */}
         <section>
@@ -100,26 +96,19 @@ export default function Home() {
             >
               <Card className="space-y-3 text-center cursor-pointer hover:opacity-90 transition">
 
-                {/* EVENT LOGO */}
                 {nextEvent.logoUrl && (
                   <img
                     src={nextEvent.logoUrl}
                     alt={`${nextEvent.name} logo`}
-                    className="mx-auto"
-                    style={{
-                      width: "120px",
-                      height: "auto",
-                      objectFit: "contain",
-                    }}
+                    className="mx-auto max-w-full h-auto"
+                    style={{ objectFit: "contain", width: "120px" }}
                   />
                 )}
 
-                {/* EVENT NAME */}
                 <h3 className="text-lg font-semibold text-text-base">
                   {nextEvent.name}
                 </h3>
 
-                {/* EVENT DATE */}
                 <p className="text-text-muted">
                   {new Date(nextEvent.event_date).toLocaleDateString("en-AU", {
                     weekday: "long",
@@ -128,7 +117,6 @@ export default function Home() {
                   })}
                 </p>
 
-                {/* TRACK */}
                 {nextEvent.track && (
                   <p className="text-text-muted">Track: {nextEvent.track}</p>
                 )}
