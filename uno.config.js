@@ -29,20 +29,6 @@ export default defineConfig({
       },
       border: 'var(--brand-border, #E5E7EB)',
 
-      safelist: [
-  'input',
-  'bg-[var(--brand-primary)]',
-  'bg-[var(--brand-surface)]',
-  'text-[var(--brand-text)]',
-  'text-[var(--brand-text-muted)]',
-
-  // ⭐ HEADER CLASSES
-  'text-header-link',
-  'hover:text-header-link-hover',
-  'text-header-link-active',
-],
-
-
       /* ⭐ HEADER COLORS */
       header: {
         bg: 'var(--header-bg)',
@@ -50,7 +36,7 @@ export default defineConfig({
         muted: 'var(--header-text-muted)',
         link: 'var(--header-link)',
         linkHover: 'var(--header-link-hover)',
-        linkActive: 'var(--header-link-active)',   // ⭐ FIXED
+        linkActive: 'var(--header-link-active)',
         accent: 'var(--header-accent)',
       },
     },
@@ -86,6 +72,11 @@ export default defineConfig({
     'bg-[var(--brand-surface)]',
     'text-[var(--brand-text)]',
     'text-[var(--brand-text-muted)]',
+
+    // ⭐ HEADER CLASSES
+    'text-header-link',
+    'hover:text-header-link-hover',
+    'text-header-link-active',
   ],
 
   shortcuts: {

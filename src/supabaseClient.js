@@ -9,3 +9,8 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 }
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// 🔥 Only expose globally in development
+if (import.meta.env.DEV) {
+  window.supabase = supabase;
+}

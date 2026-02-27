@@ -1,14 +1,43 @@
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { useEffect, useState, useMemo } from "react";
+// =========================
+// 1. IMPORTS
+// =========================
 
+// --- React & Router ---
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+
+// --- Supabase client ---
+import { supabase } from "@/supabaseClient";
+
+// --- Drag and Drop (dnd-kit) ---
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+
+import { CSS } from "@dnd-kit/utilities";
+
+// =========================
+// 2. CONSTANTS & HELPERS
+// =========================
+
+// --- Track options ---
 const TRACK_OPTIONS = ["Dirt Track", "SIC Surface"];
 
-// Convert Supabase timestamp → datetime-local format
+// --- Date helpers ---
 function toLocalInputValue(dateString) {
   if (!dateString) return "";
   const date = new Date(dateString);
   const pad = (n) => n.toString().padStart(2, "0");
-
   return (
     date.getFullYear() +
     "-" +
@@ -16,15 +45,98 @@ function toLocalInputValue(dateString) {
     "-" +
     pad(date.getDate()) +
     "T" +
+    pad(date.getHours()) +
     ":" +
     pad(date.getMinutes())
   );
 }
 
+function toLocalDateValue(dateString) {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const pad = (n) => n.toString().padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate()
+  )}`;
+}
+
+// =========================
+// 3. DRAG & DROP COMPONENTS
+// =========================
+
+// --- Sortable item with vertical SVG handle ---
+function SortableItem({ cls, children }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: cls.class_id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2"
+    >
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-gray-400"
+          aria-label="Reorder class"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <circle cx="7" cy="5" r="1.5" />
+            <circle cx="13" cy="5" r="1.5" />
+            <circle cx="7" cy="10" r="1.5" />
+            <circle cx="13" cy="10" r="1.5" />
+            <circle cx="7" cy="15" r="1.5" />
+            <circle cx="13" cy="15" r="1.5" />
+          </svg>
+        </button>
+
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// =========================
+// 4. COMPONENT
+// =========================
+
 export default function AdminEventEdit() {
   const { clubSlug, id } = useParams();
   const navigate = useNavigate();
   const isNew = id === "new";
+
+  // --- Drag & drop sensors ---
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    })
+  );
+
+  // =========================
+  // 4.1 STATE
+  // =========================
+
+  // --- Event state ---
   const [event, setEvent] = useState({
     name: "",
     event_date: "",
@@ -40,663 +152,664 @@ export default function AdminEventEdit() {
     class_limit: 3,
   });
 
+  // --- Upload state ---
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+
+  // --- UI toggles ---
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // --- Class state ---
   const [allTrackClasses, setAllTrackClasses] = useState([]);
   const [nominationClasses, setNominationClasses] = useState([]);
 
-  const [scrolled, setScrolled] = useState(false);
+  // --- Saving state ---
   const [saving, setSaving] = useState(false);
 
+  // --- Derived state ---
   const enabledClasses = useMemo(
     () => nominationClasses.filter((c) => c.is_enabled),
     [nominationClasses]
   );
+  // =========================
+  // 5. EFFECTS
+  // =========================
 
+  // --- Load event + classes on mount ---
   useEffect(() => {
-    if (!isNew) {
-      loadEventAndClasses(id);
-    }
-  }, [id, isNew]);
+    loadEventAndClasses();
+  }, [id]);
 
+  // --- Load track classes when track changes ---
   useEffect(() => {
-    if (isNew && event.track) {
+    if (event.track) {
       loadTrackClasses(event.track);
     }
-  }, [event.track, isNew]);
+  }, [event.track]);
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 10);
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  // =========================
+  // 6. DATA LOADERS
+  // =========================
 
-  async function loadEventAndClasses(eventId) {
-    const { data: dataEvent } = await window.supabase
-      .from("events")
-      .select("*")
-      .eq("id", eventId)
-      .single();
-
-    if (!dataEvent) return;
-
-    setEvent({
-      name: dataEvent.name || "",
-      event_date: dataEvent.event_date || "",
-      description: dataEvent.description || "",
-      logoUrl: dataEvent.logoUrl || "",
-      track: dataEvent.track || "",
-      nominations_open: toLocalInputValue(dataEvent.nominations_open),
-      nominations_close: toLocalInputValue(dataEvent.nominations_close),
-      member_price: dataEvent.member_price ?? 10,
-      non_member_price: dataEvent.non_member_price ?? 20,
-      junior_price: dataEvent.junior_price ?? 0,
-      preference_enabled: dataEvent.preference_enabled ?? true,
-      class_limit: dataEvent.class_limit ?? 3,
-    });
-
-    if (dataEvent.track) {
-      await loadTrackClasses(dataEvent.track, eventId);
-    }
-  }
-
-  async function loadTrackClasses(track, eventId = null) {
-    const { data: classRows } = await window.supabase
-      .from("event_classes")
-      .select("*")
-      .eq("track", track)
-      .eq("is_active", true)
-      .order("class_name", { ascending: true });
-
-    const all = classRows || [];
-    setAllTrackClasses(all);
-
-    if (!eventId) {
-      setNominationClasses(
-        all.map((cls, index) => ({
-          class_id: cls.id,
-          class_name: cls.class_name,
-          is_enabled: false,
-          order_index: index + 1,
-        }))
-      );
+  // --- Load event + nomination classes ---
+  async function loadEventAndClasses() {
+    if (isNew) {
+      setNominationClasses([]);
       return;
     }
 
-    const { data: nomRows } = await window.supabase
-      .from("nomination_classes")
+    const { data: eventData, error: eventError } = await supabase
+      .from("events")
       .select("*")
-      .eq("event_id", eventId);
+      .eq("id", id)
+      .single();
 
-    const nomByClassId = {};
-    (nomRows || []).forEach((n) => {
-      nomByClassId[n.class_id] = n;
+    if (eventError) {
+      console.error("Error loading event:", eventError);
+      return;
+    }
+
+    setEvent({
+      ...eventData,
+      event_date: toLocalInputValue(eventData.event_date),
+      nominations_open: toLocalInputValue(eventData.nominations_open),
+      nominations_close: toLocalInputValue(eventData.nominations_close),
     });
 
-    const merged = all.map((cls, index) => {
-      const existing = nomByClassId[cls.id];
-      return {
-        class_id: cls.id,
-        class_name: cls.class_name,
-        is_enabled: existing ? existing.is_enabled : false,
-        order_index: existing ? existing.order_index : index + 1,
-      };
-    });
+    const { data: classData, error: classError } = await supabase
+      .from("event_classes")
+      .select("*")
+      .eq("event_id", id)
+      .order("order_index", { ascending: true });
 
-    merged.sort((a, b) => a.order_index - b.order_index);
-    setNominationClasses(merged);
+    if (classError) {
+      console.error("Error loading event classes:", classError);
+      return;
+    }
+
+    setNominationClasses(classData);
   }
 
-  function handleTrackChange(newTrack) {
-    setEvent((prev) => ({ ...prev, track: newTrack }));
+  // --- Load classes for selected track ---
+  async function loadTrackClasses(trackName) {
+    const { data, error } = await supabase
+      .from("classes")
+      .select("*")
+      .eq("track", trackName)
+      .order("name", { ascending: true });
 
-    if (newTrack) {
-      if (isNew) {
-        loadTrackClasses(newTrack);
-      } else {
-        loadTrackClasses(newTrack, null);
-      }
-    } else {
-      setAllTrackClasses([]);
-      setNominationClasses([]);
+    if (error) {
+      console.error("Error loading track classes:", error);
+      return;
+    }
+
+    setAllTrackClasses(data);
+
+    // If new event, initialize nomination classes
+    if (isNew) {
+      const initial = data.map((cls, index) => ({
+        class_id: cls.id,
+        class_name: cls.name,
+        is_enabled: false,
+        order_index: index + 1,
+      }));
+      setNominationClasses(initial);
     }
   }
+  // =========================
+  // 7. MUTATORS / HANDLERS
+  // =========================
 
-  function toggleClassEnabled(class_id) {
+  // --- Handle drag & drop reordering ---
+  function handleDragEnd(event) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    setNominationClasses((prev) => {
+      const oldIndex = prev.findIndex((c) => c.class_id === active.id);
+      const newIndex = prev.findIndex((c) => c.class_id === over.id);
+
+      const updated = [...prev];
+      const [moved] = updated.splice(oldIndex, 1);
+      updated.splice(newIndex, 0, moved);
+
+      return updated.map((c, i) => ({ ...c, order_index: i + 1 }));
+    });
+  }
+
+  // --- Toggle class enabled ---
+  function toggleClassEnabled(classId) {
     setNominationClasses((prev) =>
       prev.map((c) =>
-        c.class_id === class_id ? { ...c, is_enabled: !c.is_enabled } : c
+        c.class_id === classId ? { ...c, is_enabled: !c.is_enabled } : c
       )
     );
   }
 
-  function moveClass(class_id, direction) {
-    setNominationClasses((prev) => {
-      const sorted = [...prev].sort((a, b) => a.order_index - b.order_index);
-      const index = sorted.findIndex((c) => c.class_id === class_id);
-      if (index === -1) return prev;
-
-      const newIndex = index + direction;
-      if (newIndex < 0 || newIndex >= sorted.length) return prev;
-
-      const temp = sorted[index];
-      sorted[index] = sorted[newIndex];
-      sorted[newIndex] = temp;
-
-      return sorted.map((c, i) => ({ ...c, order_index: i + 1 }));
-    });
+  // --- Track change ---
+  function handleTrackChange(e) {
+    const newTrack = e.target.value;
+    setEvent((prev) => ({ ...prev, track: newTrack }));
   }
 
+  // --- File upload (logo) ---
   async function handleFileUpload(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setUploadError("");
-
-    const maxSize = 2 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setUploadError("File too large. Maximum size is 2MB.");
-      return;
-    }
-
-    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      setUploadError("Invalid file type. Allowed: PNG, JPG, JPEG, WEBP.");
-      return;
-    }
-
-setUploading(true);
-
     try {
+      setUploading(true);
+      setUploadError("");
+
+      const file = e.target.files[0];
+      if (!file) return;
+
       const fileExt = file.name.split(".").pop();
-      const fileName = `event-${Date.now()}.${fileExt}`;
+      const fileName = `event-${id}-${Date.now()}.${fileExt}`;
       const filePath = `event-logos/${fileName}`;
 
-      const { error: uploadError } = await window.supabase.storage
-        .from("event-logos")
+      const { error: uploadError } = await supabase.storage
+        .from("public")
         .upload(filePath, file);
 
       if (uploadError) {
-        setUploadError("Upload failed. Please try again.");
-        setUploading(false);
+        setUploadError("Upload failed.");
         return;
       }
 
-      const { data: publicUrlData } = window.supabase.storage
-        .from("event-logos")
+      const { data: urlData } = supabase.storage
+        .from("public")
         .getPublicUrl(filePath);
 
-      const publicUrl = publicUrlData.publicUrl;
-
-      setEvent((prev) => ({ ...prev, logoUrl: publicUrl }));
+      setEvent((prev) => ({ ...prev, logoUrl: urlData.publicUrl }));
     } catch (err) {
-      setUploadError("Unexpected error during upload.");
+      console.error(err);
+      setUploadError("Unexpected upload error.");
+    } finally {
+      setUploading(false);
     }
-
-    setUploading(false);
   }
 
-  async function persistEventAndClasses({ forPreview = false } = {}) {
-    const payload = {
-      name: event.name,
-      event_date: event.event_date,
-      description: event.description,
-      logoUrl: event.logoUrl,
-      track: event.track,
-      nominations_open: event.nominations_open,
-      nominations_close: event.nominations_close,
-      member_price: Number(event.member_price),
-      non_member_price: Number(event.non_member_price),
-      junior_price: Number(event.junior_price),
-      preference_enabled: event.preference_enabled,
-      class_limit:
-        event.class_limit === "" ? null : Number(event.class_limit),
-    };
+  // --- Save event + classes ---
+  async function persistEventAndClasses() {
+    setSaving(true);
 
-    let eventId = id;
+    try {
+      let eventId = id;
 
-    if (isNew) {
-      const { data, error } = await window.supabase
-        .from("events")
-        .insert(payload)
-        .select("*")
-        .single();
+      // --- Insert new event ---
+      if (isNew) {
+        const { data, error } = await supabase
+          .from("events")
+          .insert([
+            {
+              club_slug: clubSlug,
+              name: event.name,
+              event_date: new Date(event.event_date).toISOString(),
+              description: event.description,
+              logoUrl: event.logoUrl,
+              track: event.track,
+              nominations_open: new Date(event.nominations_open).toISOString(),
+              nominations_close: new Date(event.nominations_close).toISOString(),
+              member_price: event.member_price,
+              non_member_price: event.non_member_price,
+              junior_price: event.junior_price,
+              preference_enabled: event.preference_enabled,
+              class_limit: event.class_limit,
+            },
+          ])
+          .select()
+          .single();
 
-      if (error || !data) {
-        if (!forPreview) {
-          alert("Could not save event.");
+        if (error) {
+          console.error("Error creating event:", error);
+          return false;
         }
-        return null;
+
+        eventId = data.id;
       }
 
-      eventId = data.id;
-    } else {
-      const { error } = await window.supabase
-        .from("events")
-        .update(payload)
-        .eq("id", id);
+      // --- Update existing event ---
+      if (!isNew) {
+        const { error } = await supabase
+          .from("events")
+          .update({
+            name: event.name,
+            event_date: new Date(event.event_date).toISOString(),
+            description: event.description,
+            logoUrl: event.logoUrl,
+            track: event.track,
+            nominations_open: new Date(event.nominations_open).toISOString(),
+            nominations_close: new Date(event.nominations_close).toISOString(),
+            member_price: event.member_price,
+            non_member_price: event.non_member_price,
+            junior_price: event.junior_price,
+            preference_enabled: event.preference_enabled,
+            class_limit: event.class_limit,
+          })
+          .eq("id", eventId);
 
-      if (error) {
-        if (!forPreview) {
-          alert("Could not save event.");
+        if (error) {
+          console.error("Error updating event:", error);
+          return false;
         }
-        return null;
       }
-    }
 
-    if (event.track) {
-      const rows = nominationClasses.map((c) => ({
+      // --- Upsert event classes ---
+      const classPayload = nominationClasses.map((c) => ({
         event_id: eventId,
         class_id: c.class_id,
+        class_name: c.class_name,
         is_enabled: c.is_enabled,
         order_index: c.order_index,
       }));
 
-      await window.supabase
-        .from("nomination_classes")
-        .delete()
-        .eq("event_id", eventId);
+      const { error: classError } = await supabase
+        .from("event_classes")
+        .upsert(classPayload, {
+          onConflict: "event_id,class_id",
+        });
 
-      if (rows.length > 0) {
-        await window.supabase.from("nomination_classes").insert(rows);
+      if (classError) {
+        console.error("Error saving classes:", classError);
+        return false;
       }
+
+      return eventId;
+    } finally {
+      setSaving(false);
     }
-
-    return eventId;
   }
 
+  // --- Preview event (FIXED PATH) ---
   async function handlePreview() {
-    const eventId = await persistEventAndClasses({ forPreview: true });
-    if (!eventId) return;
-    window.open(`/${clubSlug}/nominations/${eventId}/start`, "_blank");
+    const savedId = await persistEventAndClasses();
+    if (savedId) {
+      navigate(`/${clubSlug}/events/${savedId}`);
+    }
   }
 
-async function handleSubmit(e) {
-    if (e?.preventDefault) e.preventDefault();
-    setSaving(true);
-    const eventId = await persistEventAndClasses({ forPreview: false });
-    setSaving(false);
-    if (!eventId) return;
-    navigate(`/${clubSlug}/admin/events`);
+  // --- Submit/save event (FIXED PATH) ---
+  async function handleSubmit() {
+    const savedId = await persistEventAndClasses();
+    if (savedId) {
+      navigate(`/${clubSlug}/admin/events`);
+    }
   }
-
-  const headerTitle =
-    event.name.trim() !== "" ? event.name : "Untitled Event";
+  // =========================
+  // 8. JSX RETURN
+  // =========================
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 pb-32">
-      {/* STICKY HEADER */}
-      <header
-        className={`sticky top-0 z-40 transition-shadow border-b border-slate-800 bg-slate-950/95 backdrop-blur ${
-          scrolled ? "shadow-lg" : ""
-        }`}
-      >
-<div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-  <Link
-    to={`/${clubSlug}/admin/events`}
-    className="text-xs sm:text-sm text-slate-400 hover:text-slate-200 transition-colors"
-  >
-            ← Events
-          </Link>
+    <div className="max-w-3xl mx-auto py-8 px-4">
+{/* Solid red AdminDashboard-style container */}
+<div
+  className="
+    rounded-xl
+    bg-white
+    p-6
+    border
+    shadow-sm
+  "
+  style={{
+    borderColor: "transparent",
+    borderWidth: "2px",
+    backgroundClip: "padding-box",
 
-          <div className="flex-1 text-center text-sm sm:text-base font-semibold text-slate-50 truncate px-2">
-            {headerTitle}
-          </div>
+    // Solid, opaque, thicker red outline
+    boxShadow: `
+      0 0 0 4px #dc2626   /* main solid red border */
+    `,
+  }}
+>
+      {/* ========================= */}
+      {/* 8.1 PAGE HEADER */}
+      {/* ========================= */}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-semibold text-gray-900">
+          {isNew ? "Create Event" : "Edit Event"}
+        </h1>
 
-          <div className="flex items-center gap-2">
-            {!isNew && (
-              <button
-                type="button"
-                onClick={handlePreview}
-                className="hidden sm:inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-800 transition-colors"
-              >
-                Preview
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saving}
-              className={`inline-flex items-center justify-center rounded-full px-4 py-1.5 text-xs sm:text-sm font-semibold transition-colors ${
-                saving
-                  ? "bg-slate-700 text-slate-400 cursor-not-allowed"
-                  : "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
-              }`}
-            >
-              {saving ? "Saving…" : "Save"}
-            </button>
-          </div>
-        </div>
-      </header>
+<Link
+  to={`/${clubSlug}/admin/events`}
+  className="text-sm text-gray-600 hover:text-gray-800"
+>
+  Back to Events
+</Link>
+      </div>
 
-{/* MAIN CONTENT */}
-      <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
-        {/* SUMMARY BANNER */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-1 text-sm">
-          <div>
-            <span className="font-semibold text-slate-100">
-              Enabled Classes:
-            </span>{" "}
-            <span className="text-slate-300">{enabledClasses.length}</span>
-          </div>
-          <div>
-            <span className="font-semibold text-slate-100">Preference:</span>{" "}
-            <span className="text-slate-300">
-              {event.preference_enabled ? "On" : "Off"}
-            </span>
-          </div>
-          <div>
-            <span className="font-semibold text-slate-100">Limit:</span>{" "}
-            <span className="text-slate-300">
-              {event.class_limit === "" || event.class_limit === null
-                ? "Unlimited"
-                : event.class_limit}
-            </span>
-          </div>
+      {/* ========================= */}
+      {/* 8.2 BASIC EVENT FIELDS */}
+      {/* ========================= */}
+      <div className="space-y-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        {/* --- Event name --- */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Event Name
+          </label>
+          <input
+            type="text"
+            value={event.name}
+            onChange={(e) =>
+              setEvent((prev) => ({ ...prev, name: e.target.value }))
+            }
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          />
         </div>
 
-        {/* EVENT BASICS */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 space-y-6">
-          <h2 className="text-xl font-semibold text-slate-50">Event Basics</h2>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-200 mb-1">
-              Event Name
-            </label>
-            <textarea
-              rows={2}
-              value={event.name}
-              onChange={(e) =>
-                setEvent({ ...event, name: e.target.value })
-              }
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-200 mb-1">
-              Event Date
-            </label>
-            <input
-              type="date"
-              value={event.event_date}
-              onChange={(e) =>
-                setEvent({ ...event, event_date: e.target.value })
-              }
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-200 mb-1">
-              Track
-            </label>
-            <select
-              value={event.track}
-              onChange={(e) => handleTrackChange(e.target.value)}
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              <option value="">Select a track…</option>
-              {TRACK_OPTIONS.map((track) => (
-                <option key={track} value={track}>
-                  {track}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-200 mb-1">
-              Event Details
-            </label>
-            <textarea
-              rows={4}
-              value={event.description}
-              onChange={(e) =>
-                setEvent({ ...event, description: e.target.value })
-              }
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
+        {/* --- Event date --- */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Event Date
+          </label>
+          <input
+            type="datetime-local"
+            value={event.event_date}
+            onChange={(e) =>
+              setEvent((prev) => ({ ...prev, event_date: e.target.value }))
+            }
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          />
         </div>
 
-        {/* CLASSES */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 space-y-4">
-          <h2 className="text-xl font-semibold text-slate-50">Classes</h2>
-
-          {!event.track && (
-            <p className="text-sm text-slate-400">
-              Select a track to choose classes.
-            </p>
-          )}
-
-          {event.track && nominationClasses.length === 0 && (
-            <p className="text-sm text-slate-400">
-              No classes defined for this track yet. Add them in Class Manager.
-            </p>
-          )}
-
-          {event.track && nominationClasses.length > 0 && (
-            <div className="space-y-2">
-              {nominationClasses
-                .slice()
-                .sort((a, b) => a.order_index - b.order_index)
-                .map((cls) => (
-                  <div
-                    key={cls.class_id}
-                    className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 px-3 py-2"
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={cls.is_enabled}
-                        onChange={() => toggleClassEnabled(cls.class_id)}
-                        className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500"
-                      />
-                      <span className="text-sm text-slate-100">
-                        {cls.class_name}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        className="text-xs px-2 py-1 rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800"
-                        onClick={() => moveClass(cls.class_id, -1)}
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        className="text-xs px-2 py-1 rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800"
-                        onClick={() => moveClass(cls.class_id, 1)}
-                      >
-                        ↓
-                      </button>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          )}
+        {/* --- Description --- */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Description
+          </label>
+          <textarea
+            value={event.description}
+            onChange={(e) =>
+              setEvent((prev) => ({ ...prev, description: e.target.value }))
+            }
+            rows={4}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          />
         </div>
 
-{/* NOMINATION WINDOW */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 space-y-6">
-          <h2 className="text-xl font-semibold text-slate-50">
-            Nomination Window
-          </h2>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-200 mb-1">
-              Nominations Open
-            </label>
-            <input
-              type="datetime-local"
-              value={event.nominations_open}
-              onChange={(e) =>
-                setEvent({ ...event, nominations_open: e.target.value })
-              }
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-200 mb-1">
-              Nominations Close
-            </label>
-            <input
-              type="datetime-local"
-              value={event.nominations_close}
-              onChange={(e) =>
-                setEvent({ ...event, nominations_close: e.target.value })
-              }
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-        </div>
-
-        {/* ADVANCED PRICING & RULES */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 space-y-4">
-          <div
-            className="flex items-center justify-between cursor-pointer"
-            onClick={() => setShowAdvanced(!showAdvanced)}
+        {/* ========================= */}
+        {/* 8.3 TRACK SELECTOR */}
+        {/* ========================= */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Track
+          </label>
+          <select
+            value={event.track}
+            onChange={handleTrackChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
           >
-            <h2 className="text-xl font-semibold text-slate-50">
-              Advanced Pricing & Rules
-            </h2>
-            <span className="text-xl text-slate-300">
-              {showAdvanced ? "▲" : "▼"}
-            </span>
-          </div>
-
-          {showAdvanced && (
-            <div className="space-y-4 pt-2">
-              <div>
-                <label className="block text-sm font-medium text-slate-200 mb-1">
-                  Member Class Price
-                </label>
-                <input
-                  type="number"
-                  value={event.member_price}
-                  onChange={(e) =>
-                    setEvent({ ...event, member_price: e.target.value })
-                  }
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-200 mb-1">
-                  Non‑Member Class Price
-                </label>
-                <input
-                  type="number"
-                  value={event.non_member_price}
-                  onChange={(e) =>
-                    setEvent({ ...event, non_member_price: e.target.value })
-                  }
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-200 mb-1">
-                  Junior Class Price
-                </label>
-                <input
-                  type="number"
-                  value={event.junior_price}
-                  onChange={(e) =>
-                    setEvent({ ...event, junior_price: e.target.value })
-                  }
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={event.preference_enabled}
-                  onChange={(e) =>
-                    setEvent({
-                      ...event,
-                      preference_enabled: e.target.checked,
-                    })
-                  }
-                  className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500"
-                />
-                <label className="text-sm font-medium text-slate-200">
-                  Enable Preference Class (optional free class)
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-200 mb-1">
-                  Class Limit (leave blank for unlimited)
-                </label>
-                <input
-                  type="number"
-                  value={event.class_limit ?? ""}
-                  onChange={(e) =>
-                    setEvent({
-                      ...event,
-                      class_limit:
-                        e.target.value === "" ? "" : Number(e.target.value),
-                    })
-                  }
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-            </div>
-          )}
+            <option value="">Select a track</option>
+            {TRACK_OPTIONS.map((track) => (
+              <option key={track} value={track}>
+                {track}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* EVENT LOGO */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 space-y-4">
-          <h2 className="text-xl font-semibold text-slate-50">Event Logo</h2>
+        {/* ========================= */}
+        {/* 8.4 LOGO UPLOAD */}
+        {/* ========================= */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Event Logo
+          </label>
 
           {event.logoUrl && (
-            <div className="w-full h-40 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-center overflow-hidden">
-              <img
-                src={event.logoUrl}
-                alt="Event Logo"
-                className="w-full h-full object-contain"
-              />
-            </div>
+            <img
+              src={event.logoUrl}
+              alt="Event Logo"
+              className="h-20 mt-2 rounded border"
+            />
           )}
 
           <input
             type="file"
             accept="image/*"
             onChange={handleFileUpload}
-            className="block w-full text-sm text-slate-200"
+            className="mt-2"
           />
 
           {uploading && (
-            <p className="text-sm text-emerald-300">Uploading image…</p>
+            <p className="text-sm text-gray-500 mt-1">Uploading...</p>
           )}
-
           {uploadError && (
-            <p className="text-sm text-red-300">{uploadError}</p>
+            <p className="text-sm text-red-600 mt-1">{uploadError}</p>
           )}
         </div>
 
-        {/* BOTTOM SAVE BUTTON */}
+        {/* ========================= */}
+        {/* 8.5 NOMINATIONS WINDOW */}
+        {/* ========================= */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* --- Nominations open --- */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Nominations Open
+            </label>
+            <input
+              type="datetime-local"
+              value={event.nominations_open}
+              onChange={(e) =>
+                setEvent((prev) => ({
+                  ...prev,
+                  nominations_open: e.target.value,
+                }))
+              }
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+            />
+          </div>
+
+          {/* --- Nominations close --- */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Nominations Close
+            </label>
+            <input
+              type="datetime-local"
+              value={event.nominations_close}
+              onChange={(e) =>
+                setEvent((prev) => ({
+                  ...prev,
+                  nominations_close: e.target.value,
+                }))
+              }
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+            />
+          </div>
+        </div>
+
+        {/* ========================= */}
+        {/* 8.6 PRICING */}
+        {/* ========================= */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* --- Member price --- */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Member Price
+            </label>
+            <input
+              type="number"
+              value={event.member_price}
+              onChange={(e) =>
+                setEvent((prev) => ({
+                  ...prev,
+                  member_price: Number(e.target.value),
+                }))
+              }
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+            />
+          </div>
+
+          {/* --- Non-member price --- */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Non‑Member Price
+            </label>
+            <input
+              type="number"
+              value={event.non_member_price}
+              onChange={(e) =>
+                setEvent((prev) => ({
+                  ...prev,
+                  non_member_price: Number(e.target.value),
+                }))
+              }
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+            />
+          </div>
+
+          {/* --- Junior price --- */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Junior Price
+            </label>
+            <input
+              type="number"
+              value={event.junior_price}
+              onChange={(e) =>
+                setEvent((prev) => ({
+                  ...prev,
+                  junior_price: Number(e.target.value),
+                }))
+              }
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+            />
+          </div>
+        </div>
+
+        {/* ========================= */}
+        {/* 8.7 ADVANCED TOGGLE */}
+        {/* ========================= */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((prev) => !prev)}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            {showAdvanced ? "Hide Advanced Settings" : "Show Advanced Settings"}
+          </button>
+        </div>
+        {/* ========================= */}
+        {/* 8.8 ADVANCED SETTINGS */}
+        {/* ========================= */}
+        {showAdvanced && (
+          <div className="space-y-6 border-t pt-6">
+            {/* --- Preference enabled --- */}
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={event.preference_enabled}
+                onChange={(e) =>
+                  setEvent((prev) => ({
+                    ...prev,
+                    preference_enabled: e.target.checked,
+                  }))
+                }
+                className="h-4 w-4 rounded border-gray-400 text-red-600 focus:ring-red-500"
+              />
+              <label className="text-sm font-medium text-gray-700">
+                Enable Class Preference Selection
+              </label>
+            </div>
+
+            {/* --- Class limit --- */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Class Limit
+              </label>
+              <input
+                type="number"
+                value={event.class_limit}
+                onChange={(e) =>
+                  setEvent((prev) => ({
+                    ...prev,
+                    class_limit: Number(e.target.value),
+                  }))
+                }
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ========================= */}
+      {/* 8.9 CLASS LIST (DRAG & DROP) */}
+      {/* ========================= */}
+      <div className="mt-10 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Event Classes
+        </h2>
+
+        {!event.track && (
+          <p className="text-sm text-gray-600">
+            Select a track to load available classes.
+          </p>
+        )}
+
+        {event.track && nominationClasses.length === 0 && (
+          <p className="text-sm text-gray-600">
+            No classes available for this track.
+          </p>
+        )}
+
+        {event.track && nominationClasses.length > 0 && (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={nominationClasses.map((c) => c.class_id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {nominationClasses
+                  .slice()
+                  .sort((a, b) => a.order_index - b.order_index)
+                  .map((cls) => (
+                    <SortableItem key={cls.class_id} cls={cls}>
+                      <>
+                        <input
+                          type="checkbox"
+                          checked={cls.is_enabled}
+                          onChange={() => toggleClassEnabled(cls.class_id)}
+                          className="h-4 w-4 rounded border-gray-400 text-red-600 focus:ring-red-500"
+                        />
+                        <span className="text-sm text-gray-900">
+                          {cls.class_name}
+                        </span>
+                      </>
+                    </SortableItem>
+                  ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </div>
+
+      {/* ========================= */}
+      {/* 8.10 ACTION BUTTONS */}
+      {/* ========================= */}
+      <div className="mt-10 flex items-center justify-end gap-4">
+        <button
+          type="button"
+          onClick={handlePreview}
+          disabled={saving}
+          className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+        >
+          Preview
+        </button>
+
         <button
           type="button"
           onClick={handleSubmit}
           disabled={saving}
-          className={`w-full mt-2 rounded-full px-4 py-3 text-lg font-semibold transition-colors ${
-            saving
-              ? "bg-slate-700 text-slate-400 cursor-not-allowed"
-              : "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
-          }`}
+          className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700"
         >
-          {isNew ? "Create Event" : "Save Changes"}
+          {saving ? "Saving..." : "Save Event"}
         </button>
       </div>
+          </div> {/* end Red outline container */}
     </div>
   );
 }
