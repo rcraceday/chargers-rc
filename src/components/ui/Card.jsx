@@ -9,12 +9,14 @@ export default function Card({ children, className = "", ...props }) {
   const INNER_RADIUS = RADIUS - BORDER_THICKNESS;
 
   const wrapperStyle = {
+    width: "100%",
+    maxWidth: "100%",
     borderRadius: `${RADIUS}px`,
     padding: `${BORDER_THICKNESS}px`,
     background: palette.cardGradient,
     boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
     transition: "all 0.25s ease",
-    cursor: "pointer",
+    overflow: "hidden",
   };
 
   const wrapperHoverStyle = {
@@ -23,6 +25,8 @@ export default function Card({ children, className = "", ...props }) {
   };
 
   const innerStyle = {
+    width: "100%",
+    maxWidth: "100%",
     background: palette.surface,
     borderRadius: `${INNER_RADIUS}px`,
     padding: "18px",
