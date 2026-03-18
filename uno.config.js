@@ -1,9 +1,10 @@
+// uno.config.js
 import { defineConfig, presetUno, presetIcons, presetTypography } from 'unocss'
 
 export default defineConfig({
   content: [
     './index.html',
-    './src/**/*',
+    './src/**/*.{html,js,jsx,ts,tsx}',   // ⭐ FIXED: UnoCSS now scans your actual files
   ],
 
   presets: [
@@ -29,7 +30,6 @@ export default defineConfig({
       },
       border: 'var(--brand-border, #E5E7EB)',
 
-      /* ⭐ HEADER COLORS */
       header: {
         bg: 'var(--header-bg)',
         text: 'var(--header-text)',
@@ -73,7 +73,6 @@ export default defineConfig({
     'text-[var(--brand-text)]',
     'text-[var(--brand-text-muted)]',
 
-    // ⭐ HEADER CLASSES
     'text-header-link',
     'hover:text-header-link-hover',
     'text-header-link-active',
