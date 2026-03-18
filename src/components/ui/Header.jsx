@@ -20,7 +20,7 @@ export default function Header({ club, hideMenu }) {
     null;
 
   return (
-    <header className="w-full bg-white" style={{ overflowX: "hidden" }}>
+    <header className="w-full bg-white">
       <div className="w-full" style={{ borderBottom: `4px solid ${brand}` }}>
         <div
           className="
@@ -28,6 +28,7 @@ export default function Header({ club, hideMenu }) {
             flex items-center justify-between
             md:grid md:grid-cols-3 md:items-center md:py-0 md:h-24
           "
+          style={{ overflowX: "hidden" }}
         >
           {/* LEFT */}
           <div className="flex items-center">
@@ -35,6 +36,7 @@ export default function Header({ club, hideMenu }) {
               src={rcracedayLogo}
               alt="RCRaceDay"
               className="h-8 md:h-10 w-auto object-contain"
+              style={{ maxWidth: "100%" }}
             />
           </div>
 
@@ -46,6 +48,7 @@ export default function Header({ club, hideMenu }) {
                   src={logoSrc}
                   alt={club?.name}
                   className="h-12 md:h-20 w-auto object-contain"
+                  style={{ maxWidth: "100%" }}
                 />
               </Link>
             )}

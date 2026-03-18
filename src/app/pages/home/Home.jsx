@@ -82,7 +82,7 @@ export default function Home() {
   }
 
   return (
-    <div className="w-full max-w-[1024px] mx-auto px-4 py-10 space-y-12">
+    <div className="w-full space-y-12 py-10">
 
       {/* CLUB NEWS */}
       <section>

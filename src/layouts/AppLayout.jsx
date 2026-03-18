@@ -24,10 +24,7 @@ export default function AppLayout() {
   }
 
   return (
-    <div
-      className="min-h-screen flex flex-col bg-white"
-      style={{ overflowX: "hidden" }}   // ← FIX: stops global white strip
-    >
+    <div className="min-h-screen flex flex-col bg-white">
       <Header club={club} />
       <main className="flex-1 w-full">
         <div className="max-w-[1024px] mx-auto px-4 py-6">
