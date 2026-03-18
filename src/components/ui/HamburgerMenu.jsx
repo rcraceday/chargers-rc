@@ -6,7 +6,7 @@ import { useMembership } from "@/app/providers/MembershipProvider";
 
 import DesktopDropdown from "@/components/ui/DesktopDropdown";
 import MobileDrawer from "@/components/ui/MobileDrawer";
-import { buildMenuItems } from "@/components/ui/menuItems";
+import { buildMenuItems } from "@/components/ui/menuItems.js";
 
 export default function HamburgerMenu({ clubSlug }) {
   const [open, setOpen] = useState(false);
