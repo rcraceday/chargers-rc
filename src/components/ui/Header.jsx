@@ -24,40 +24,43 @@ export default function Header({ club, hideMenu }) {
 
   return (
     <header className="w-full bg-white">
-      {/* SOLID BRAND STRIPE */}
+      {/* BRAND STRIPE */}
       <div
         className="w-full"
         style={{
-          borderBottom: `4px solid ${brand}`
+          borderBottom: `4px solid ${brand}`,
+          "--brand-color": brand
         }}
       >
         <div className="w-full max-w-screen-lg mx-auto px-4 h-24 grid grid-cols-3 items-center">
 
-          {/* LEFT — RCRaceDay */}
-          <Link to={`/${clubSlug}`} className="flex items-center no-underline">
+          {/* LEFT — RCRaceDay (NOT A LINK ANYMORE) */}
+          <div className="flex items-center">
             <img
               src={rcracedayLogo}
               alt="RCRaceDay"
               className="h-10 w-auto object-contain"
             />
-          </Link>
+          </div>
 
-          {/* CENTER — Club Logo (BIGGER) */}
+          {/* CENTER — Chargers RC Logo (THIS IS THE LINK TO HOME) */}
           <div className="flex justify-center">
             {logoSrc && (
-              <img
-                src={logoSrc}
-                alt={club?.name}
-                className="h-20 w-auto object-contain"
-              />
+              <Link to={`/${clubSlug}/app`} className="flex items-center">
+                <img
+                  src={logoSrc}
+                  alt={club?.name}
+                  className="h-20 w-auto object-contain"
+                />
+              </Link>
             )}
           </div>
 
-          {/* RIGHT — User Menu */}
+          {/* RIGHT — Avatar + Menu */}
           {!hideMenu && user && (
             <div className="flex justify-end items-center gap-4">
               <AvatarMenu />
-              <HamburgerMenu />
+              <HamburgerMenu clubSlug={clubSlug} />
             </div>
           )}
 

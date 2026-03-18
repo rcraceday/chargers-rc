@@ -7,27 +7,29 @@ export default function AvatarMenu() {
   const [open, setOpen] = useState(false);
   const { membership } = useMembership();
 
+  const type = membership?.membership_type;
+
   const label =
-    membership?.membership_type === "family"
+    type === "family"
       ? "Family Member"
-      : membership?.membership_type === "junior"
+      : type === "junior"
       ? "Junior Member"
-      : membership?.membership_type === "single"
+      : type === "single"
       ? "Single Member"
-      : membership?.membership_type === "non_member"
+      : type === "non_member"
       ? "Non‑Member"
       : "Member";
 
   return (
     <div
-      className="avatar-wrapper cursor-default"
+      className="relative avatar-wrapper cursor-default"
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
-      <div className="cursor-default">
-        <UserStatusIcon />
-      </div>
+      {/* Avatar + Badge */}
+      <UserStatusIcon />
 
+      {/* Membership Status Hover */}
       <div className={`avatar-dropdown ${open ? "open" : ""}`}>
         <div className="avatar-status">{label}</div>
       </div>
