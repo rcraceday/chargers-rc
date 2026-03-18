@@ -24,7 +24,15 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div
+      className="min-h-screen flex flex-col bg-white"
+      style={{
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
+        paddingTop: "env(safe-area-inset-top)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+      }}
+    >
       <Header club={club} />
       <main className="flex-1 w-full">
         <div className="max-w-[1024px] mx-auto px-4 py-6">

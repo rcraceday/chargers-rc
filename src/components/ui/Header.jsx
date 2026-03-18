@@ -22,21 +22,19 @@ export default function Header({ club, hideMenu }) {
   return (
     <header className="w-full bg-white">
       <div className="w-full" style={{ borderBottom: `4px solid ${brand}` }}>
-        <div
-          className="
-            w-full max-w-[1024px] mx-auto px-4 py-3
-            flex items-center justify-between
-            md:grid md:grid-cols-3 md:items-center md:py-0 md:h-24
-          "
-          style={{ overflowX: "hidden" }}
-        >
+        {/* MOBILE = flex row, DESKTOP = grid */}
+        <div className="
+          w-full max-w-screen-lg mx-auto px-4 py-3
+          flex items-center justify-between
+          md:grid md:grid-cols-3 md:items-center md:py-0 md:h-24
+        ">
+
           {/* LEFT */}
           <div className="flex items-center">
             <img
               src={rcracedayLogo}
               alt="RCRaceDay"
               className="h-8 md:h-10 w-auto object-contain"
-              style={{ maxWidth: "100%" }}
             />
           </div>
 
@@ -48,7 +46,6 @@ export default function Header({ club, hideMenu }) {
                   src={logoSrc}
                   alt={club?.name}
                   className="h-12 md:h-20 w-auto object-contain"
-                  style={{ maxWidth: "100%" }}
                 />
               </Link>
             )}
@@ -64,11 +61,12 @@ export default function Header({ club, hideMenu }) {
               </div>
 
               {/* Mobile */}
-              <div className="flex md:hidden items-center justify-end pr-2">
+              <div className="flex md:hidden items-center justify-end pr-4">
                 <HamburgerMenu clubSlug={clubSlug} showAvatarInside />
               </div>
             </>
           )}
+
         </div>
       </div>
     </header>
