@@ -14,6 +14,7 @@ export default function PublicLayout() {
         display: "flex",
         flexDirection: "column",
         flex: 1,
+        overflowX: "hidden",   // ← FIX: stops global white strip
       }}
     >
       <div
