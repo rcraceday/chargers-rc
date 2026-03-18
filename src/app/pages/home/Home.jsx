@@ -26,8 +26,7 @@ export default function Home() {
 
   const clubSlug = club?.slug;
 
-  const brand =
-    club?.theme?.hero?.backgroundColor || "#0A66C2";
+  const brand = club?.theme?.hero?.backgroundColor || "#0A66C2";
 
   const [nextEvent, setNextEvent] = useState(null);
   const [loadingEvent, setLoadingEvent] = useState(true);
@@ -37,7 +36,7 @@ export default function Home() {
   const cardWidth = 260; // px
   const gap = 16; // px
 
-  const newsItems = [1, 2, 3, 4, 5]; // placeholder; swap for real data later
+  const newsItems = [1, 2, 3, 4, 5]; // placeholder
 
   const scrollNewsBy = (direction) => {
     if (!newsScrollRef.current) return;
@@ -82,7 +81,7 @@ export default function Home() {
   }
 
   return (
-    <div className="w-full max-w-[1024px] mx-auto px-4 py-10 space-y-12">
+    <div className="w-full max-w-[1024px] mx-auto px-4 py-10 space-y-12 overflow-x-hidden">
 
       {/* CLUB NEWS */}
       <section>
@@ -90,12 +89,12 @@ export default function Home() {
           Club News
         </h2>
 
-        <div className="relative w-full">
+        <div className="relative w-full overflow-x-hidden">
 
-          {/* Scroll container: 3 cards visible, no scrollbar line */}
+          {/* Scroll container */}
           <div
             ref={newsScrollRef}
-            className="flex gap-4 overflow-x-hidden snap-x snap-mandatory"
+            className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide"
           >
             {newsItems.map((i) => (
               <Card
@@ -117,7 +116,7 @@ export default function Home() {
           <button
             type="button"
             onClick={() => scrollNewsBy(-1)}
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 bg-white/90 border border-gray-200 hover:bg-white shadow-sm rounded-full h-8 w-8 flex items-center justify-center text-gray-500"
+            className="absolute left-0 top-1/2 -translate-y-1/2 bg-white/90 border border-gray-200 hover:bg-white shadow-sm rounded-full h-8 w-8 flex items-center justify-center text-gray-500 -ml-3"
           >
             ‹
           </button>
@@ -126,7 +125,7 @@ export default function Home() {
           <button
             type="button"
             onClick={() => scrollNewsBy(1)}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 bg-white/90 border border-gray-200 hover:bg-white shadow-sm rounded-full h-8 w-8 flex items-center justify-center text-gray-500"
+            className="absolute right-0 top-1/2 -translate-y-1/2 bg-white/90 border border-gray-200 hover:bg-white shadow-sm rounded-full h-8 w-8 flex items-center justify-center text-gray-500 -mr-3"
           >
             ›
           </button>
