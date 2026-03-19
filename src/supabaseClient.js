@@ -1,5 +1,6 @@
 // src/supabaseClient.js
-console.log("SUPABASE CLIENT CREATED");
+// Purpose: create and export a Supabase client that reliably persists sessions in the browser.
+// Keep this file as the single source of truth for client creation.
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -7,28 +8,32 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.warn("Supabase env vars missing: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY");
+  console.warn(
+    "Supabase env vars missing: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY"
+  );
 }
+
+// Ensure a browser storage adapter when running in the browser.
+// This forces the client to use localStorage for session persistence.
+const browserStorage =
+  typeof window !== "undefined" && window.localStorage ? window.localStorage : undefined;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    persistSession: true
-  }
+    persistSession: true,
+    storage: browserStorage,
+  },
 });
 
-console.log(">>> supabaseClient init", {
-  urlPresent: !!SUPABASE_URL,
-  anonKeyPresent: !!SUPABASE_ANON_KEY,
-});
-
-// Expose client for production console debugging (remove after diagnosis)
+// Debug exposure for diagnosis (remove after issue resolved).
+// Expose a single clearly-named global to inspect runtime state from DevTools.
 if (typeof window !== "undefined") {
-  // Use a clearly named global to avoid collisions
   window.__supabase = supabase;
   window.__SUPABASE_DEBUG = {
     url: SUPABASE_URL ? "[present]" : "[missing]",
     anonKeyPresent: !!SUPABASE_ANON_KEY,
-    envDEV: !!import.meta.env.DEV
+    storageProvided: !!browserStorage,
+    envDEV: !!import.meta.env.DEV,
   };
-  console.log(">>> window.__supabase exposed for debugging", window.__SUPABASE_DEBUG);
+  console.log(">>> supabaseClient init", window.__SUPABASE_DEBUG);
 }

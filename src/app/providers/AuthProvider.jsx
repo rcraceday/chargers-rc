@@ -1,12 +1,14 @@
 // src/app/providers/AuthProvider.jsx
+// AuthProvider: restores session, loads profile, and exposes auth state via context.
+
 console.log(">>> AUTH PROVIDER MODULE LOADED", import.meta.url);
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/supabaseClient";
 
 console.log(">>> SUPABASE CLIENT (module) READY", {
-  supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
-  envPresent: !!import.meta.env.VITE_SUPABASE_URL,
+  supabaseUrlPresent: !!import.meta.env.VITE_SUPABASE_URL,
+  anonKeyPresent: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
 });
 
 const AuthContext = createContext();
