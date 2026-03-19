@@ -5,6 +5,9 @@ import { supabase } from "@/supabaseClient";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 
+// 🔥 Import RC RaceDay global logo
+import rcracedayLogo from "@/assets/rcraceday_logo.png";
+
 export default function Signup() {
   const { club } = useOutletContext();
   const { clubSlug } = useParams();
@@ -27,32 +30,16 @@ export default function Signup() {
   async function handleSignup(e) {
     e.preventDefault();
 
-    console.log("🔥 handleSignup CALLED");
-
     setErrorMsg("");
 
-    if (!name.trim()) {
-      console.log("❌ Name invalid");
-      return setErrorMsg("Please enter your full name.");
-    }
-    if (!isValidEmail(email.trim())) {
-      console.log("❌ Email invalid");
-      return setErrorMsg("Please enter a valid email address.");
-    }
-    if (password.length < 6) {
-      console.log("❌ Password too short");
-      return setErrorMsg("Password must be at least 6 characters long.");
-    }
-    if (password !== confirmPassword) {
-      console.log("❌ Passwords do not match");
-      return setErrorMsg("Passwords do not match.");
-    }
+    if (!name.trim()) return setErrorMsg("Please enter your full name.");
+    if (!isValidEmail(email.trim())) return setErrorMsg("Please enter a valid email address.");
+    if (password.length < 6) return setErrorMsg("Password must be at least 6 characters long.");
+    if (password !== confirmPassword) return setErrorMsg("Passwords do not match.");
 
     setLoading(true);
 
     const cleanEmail = email.trim().toLowerCase();
-
-    console.log("🔥 Checking existing profile for:", cleanEmail);
 
     const { data: existingUser, error: existingError } = await supabase
       .from("profiles")
@@ -60,17 +47,13 @@ export default function Signup() {
       .eq("email", cleanEmail)
       .maybeSingle();
 
-    console.log("🔥 existingUser result:", existingUser, existingError);
-
     if (existingError) {
-      console.log("❌ Profile lookup error:", existingError);
       setErrorMsg("Something went wrong. Please try again.");
       setLoading(false);
       return;
     }
 
     if (existingUser) {
-      console.log("❌ Email already exists in profiles");
       setErrorMsg("This email is already registered. Please log in instead.");
       setLoading(false);
       return;
@@ -99,24 +82,15 @@ export default function Signup() {
       },
     };
 
-    console.log("🔥 SIGNUP PAYLOAD:", JSON.stringify(payload, null, 2));
-    console.log("🔥 Calling supabase.auth.signUp…");
-
     const { data, error } = await supabase.auth.signUp(payload);
 
-    console.log("🔥 signUp RESPONSE:", { data, error });
-
     if (error) {
-      console.log("❌ Signup error:", error);
       setErrorMsg(error.message);
       setLoading(false);
       return;
     }
 
-    // 🔥 IMPORTANT: Immediately sign out to avoid authenticated state freezing RLS
     await supabase.auth.signOut();
-
-    console.log("✅ Signup success, navigating to check-email");
 
     navigate(
       `/${clubSlug}/public/check-email?email=${encodeURIComponent(cleanEmail)}`
@@ -166,7 +140,10 @@ export default function Signup() {
             Create Account
           </h1>
 
-          <form onSubmit={handleSignup} style={{ width: "100%", display: "flex", flexDirection: "column", gap: 16 }}>
+          <form
+            onSubmit={handleSignup}
+            style={{ width: "100%", display: "flex", flexDirection: "column", gap: 16 }}
+          >
             <Input
               label="Full Name"
               value={name}
@@ -207,10 +184,36 @@ export default function Signup() {
 
           <p style={{ textAlign: "center", marginTop: 24, color: "#6b7280" }}>
             Already have an account?{" "}
-            <Link to={`/${clubSlug}/public/login`} style={{ color: "#0A66C2", textDecoration: "underline" }}>
+            <Link
+              to={`/${clubSlug}/public/login`}
+              style={{ color: "#0A66C2", textDecoration: "underline" }}
+            >
               Log in
             </Link>
           </p>
+
+          {/* 🔥 RC RaceDay global home link */}
+          <div style={{ marginTop: 40, display: "flex", justifyContent: "center" }}>
+            <img
+              src={rcracedayLogo}
+              alt="RC RaceDay"
+              onClick={() => navigate("/")}
+              style={{
+                width: 96,
+                cursor: "pointer",
+                transition: "transform 0.2s ease",
+                filter: "drop-shadow(0 0 0 transparent)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(1.03)";
+                e.currentTarget.style.filter = "drop-shadow(0 4px 6px rgba(0,0,0,0.15))";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.filter = "drop-shadow(0 0 0 transparent)";
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>

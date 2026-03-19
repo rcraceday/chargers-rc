@@ -5,6 +5,9 @@ import { supabase } from "@/supabaseClient";
 import TextInput from "@/components/ui/TextInput";
 import Button from "@/components/ui/Button";
 
+// 🔥 Import the real RC RaceDay logo
+import rcracedayLogo from "@/assets/rcraceday_logo.png";
+
 export default function Login() {
   const { club } = useOutletContext();
   const { clubSlug } = useParams();
@@ -37,7 +40,7 @@ export default function Login() {
 
     setLoading(true);
 
-    const { data: authData, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
     });
@@ -52,7 +55,6 @@ export default function Login() {
       return;
     }
 
-    // 🔥 STOP HERE — MembershipProvider will handle membership creation/attachment
     navigate(`/${clubSlug}/app/`);
   }
 
@@ -95,6 +97,16 @@ export default function Login() {
           Sign up
         </Link>
       </p>
+
+      {/* 🔥 RC RaceDay global home link */}
+     <div className="mt-10 flex justify-center">
+  <img
+    src={rcracedayLogo}
+    alt="RC RaceDay"
+    onClick={() => navigate("/")}
+    className="w-24 cursor-pointer transition-transform duration-200 hover:scale-[1.03] hover:drop-shadow-md"
+  />
+</div>
     </div>
   );
 }

@@ -19,9 +19,10 @@ export default function ProfileProvider({ children }) {
   const [loadingProfile, setLoadingProfile] = useState(true);
 
   async function loadProfile() {
+    // 🔥 FIX: If user is not ready yet, stay in loading state
     if (!user?.id) {
       setProfile(null);
-      setLoadingProfile(false);
+      setLoadingProfile(true);
       return;
     }
 

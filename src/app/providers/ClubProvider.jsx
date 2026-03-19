@@ -50,14 +50,15 @@ export default function ClubProvider({ children }) {
   const loadClub = useCallback(async () => {
     console.log("ClubProvider.loadClub start", { clubSlug, pathname: location.pathname });
 
-    // If slug is not yet available, clear loading and wait for next render
+    // 🔥 IMPORTANT FIX:
+    // If slug is not yet available (router still stabilizing), stay in loading state.
     if (!clubSlug) {
-      console.log("ClubProvider: no clubSlug yet or reserved segment — clearing loading state", {
+      console.log("ClubProvider: slug not ready yet — staying in loading state", {
         clubSlug,
         pathname: location.pathname,
       });
       setClub(null);
-      setLoadingClub(false);
+      setLoadingClub(true);
       return;
     }
 
@@ -93,10 +94,10 @@ export default function ClubProvider({ children }) {
           theme,
         };
 
-        console.log("ClubProvider: club loaded", { slug: clubSlug, id: data.id, pathname: location.pathname });
+        console.log("ClubProvider: club loaded", { slug: clubSlug, id: data.id });
         setClub(loadedClub);
       } else {
-        console.log("ClubProvider: no club found for slug", { clubSlug, pathname: location.pathname });
+        console.log("ClubProvider: no club found for slug", { clubSlug });
         setClub(null);
       }
     } catch (err) {
@@ -104,16 +105,15 @@ export default function ClubProvider({ children }) {
       setClub(null);
     } finally {
       setLoadingClub(false);
-      console.log("ClubProvider.loadClub finished", { clubSlug, pathname: location.pathname });
+      console.log("ClubProvider.loadClub finished", { clubSlug });
     }
-  }, [clubSlug, location.pathname]);
+  }, [clubSlug]);
 
-  // Run only when the top-level clubSlug (derived) changes
+  // Run only when the top-level clubSlug changes
   useEffect(() => {
-    console.log("ClubProvider useEffect triggered", { clubSlug, pathname: location.pathname, loadingClub });
+    console.log("ClubProvider useEffect triggered", { clubSlug, pathname: location.pathname });
     loadClub();
-    // Depend only on clubSlug / pathname so loadClub runs deterministically
-  }, [clubSlug, location.pathname]);
+  }, [clubSlug, loadClub]);
 
   return (
     <ClubContext.Provider

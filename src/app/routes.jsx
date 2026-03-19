@@ -87,7 +87,7 @@ export default function RoutesFile() {
         >
           <Route index element={<PublicRootRedirect />} />
           <Route path="login" element={<Login />} />
-          <Route path="signin" element={<Signup />} />
+          <Route path="signup" element={<Signup />} />
           <Route path="check-email/*" element={<CheckEmail />} />
           <Route path="forgot-password" element={<ForgotPassword />} />
           <Route path="reset-password" element={<ResetPassword />} />

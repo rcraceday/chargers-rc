@@ -8,14 +8,21 @@ export default function ClubLayout({ children, mode = "drivers" }) {
   const { club, loadingClub } = useClub();
   const { profile, loadingProfile } = useProfile();
 
-  // Diagnostic: show both nearest params and top-level match
   const params = useParams();
   const topMatch = useMatch("/:clubSlug/*");
-  console.log("ClubLayout params", { params, topMatch: topMatch?.params, loadingClub, loadingProfile });
 
-  // While either provider is still loading, do not mount nested routes
-  if (loadingClub || loadingProfile) {
-    // lightweight placeholder prevents nested route mounting and param flips
+  const clubSlug = topMatch?.params?.clubSlug || null;
+
+  console.log("ClubLayout params", {
+    params,
+    topMatch: topMatch?.params,
+    loadingClub,
+    loadingProfile,
+    clubSlug,
+  });
+
+  // 🔥 NEW: Do not render anything until router provides a slug
+  if (!clubSlug) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div>Loading…</div>
@@ -23,7 +30,16 @@ export default function ClubLayout({ children, mode = "drivers" }) {
     );
   }
 
-  // Only redirect after loading finished
+  // While either provider is still loading, do not mount nested routes
+  if (loadingClub || loadingProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div>Loading…</div>
+      </div>
+    );
+  }
+
+  // Only redirect after loading finished AND slug exists
   if (!club) {
     return <Navigate to="/" replace />;
   }

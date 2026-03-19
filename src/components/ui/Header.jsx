@@ -23,22 +23,26 @@ export default function Header({ club, hideMenu }) {
     <header className="w-full bg-white">
       <div className="w-full" style={{ borderBottom: `4px solid ${brand}` }}>
         {/* MOBILE = flex row, DESKTOP = grid */}
-        <div className="
-          w-full max-w-screen-lg mx-auto px-4 py-3
-          flex items-center justify-between
-          md:grid md:grid-cols-3 md:items-center md:py-0 md:h-24
-        ">
+        <div
+          className="
+            w-full max-w-screen-lg mx-auto px-4 py-3
+            flex items-center justify-between
+            md:grid md:grid-cols-3 md:items-center md:py-0 md:h-24
+          "
+        >
 
-          {/* LEFT */}
+          {/* LEFT — RC RaceDay logo → link to ClubSelect */}
           <div className="flex items-center">
-            <img
-              src={rcracedayLogo}
-              alt="RCRaceDay"
-              className="h-8 md:h-10 w-auto object-contain"
-            />
+            <Link to="/" className="flex items-center">
+              <img
+                src={rcracedayLogo}
+                alt="RCRaceDay"
+                className="h-8 md:h-10 w-auto object-contain cursor-pointer transition-transform hover:scale-[1.03] hover:drop-shadow-sm"
+              />
+            </Link>
           </div>
 
-          {/* CENTER */}
+          {/* CENTER — Club logo */}
           <div className="flex items-center justify-center md:justify-center px-1 md:px-0">
             {logoSrc && (
               <Link to={`/${clubSlug}/app`} className="flex items-center">
@@ -51,7 +55,7 @@ export default function Header({ club, hideMenu }) {
             )}
           </div>
 
-          {/* RIGHT */}
+          {/* RIGHT — Menus */}
           {!hideMenu && user && (
             <>
               {/* Desktop */}
