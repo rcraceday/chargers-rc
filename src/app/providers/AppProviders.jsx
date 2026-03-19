@@ -1,7 +1,5 @@
 // src/app/providers/AppProviders.jsx
-
-console.log(">>> APP PROVIDERS MOUNTED", import.meta.url);
-
+import { Outlet } from "react-router-dom";
 import { useAuth } from "@/app/providers/AuthProvider";
 import ClubProvider, { useClub } from "@/app/providers/ClubProvider";
 
@@ -11,21 +9,21 @@ import DriverProvider from "@/app/providers/DriverProvider";
 import NumberProvider from "@/app/providers/NumberProvider";
 import NotificationProvider from "@/app/providers/NotificationProvider";
 
-function InnerAppProviders({ user, children }) {
+function InnerAppProviders() {
+  const { user } = useAuth();
   const { club } = useClub();
 
-  console.log(">>> APP PROVIDERS CHILDREN", {
-    hasMembershipProvider: typeof MembershipProvider === "function",
-    user,
-    club,
-  });
+  // 🔥 DIAGNOSTIC LOG — THIS IS WHAT WE NEED
+  console.log("[InnerAppProviders]", { user, club });
 
   return (
     <ProfileProvider>
       <MembershipProvider user={user} club={club}>
         <DriverProvider>
           <NumberProvider>
-            <NotificationProvider>{children}</NotificationProvider>
+            <NotificationProvider>
+              <Outlet />
+            </NotificationProvider>
           </NumberProvider>
         </DriverProvider>
       </MembershipProvider>
@@ -33,12 +31,10 @@ function InnerAppProviders({ user, children }) {
   );
 }
 
-export default function AppProviders({ children }) {
-  const { user } = useAuth();
-
+export default function AppProviders() {
   return (
     <ClubProvider>
-      <InnerAppProviders user={user}>{children}</InnerAppProviders>
+      <InnerAppProviders />
     </ClubProvider>
   );
 }

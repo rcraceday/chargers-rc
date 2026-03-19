@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useNavigate, useParams, useOutletContext, Link } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
-import Input from "@/components/ui/Input";
+import TextInput from "@/components/ui/TextInput";
 import Button from "@/components/ui/Button";
 
 export default function Login() {
@@ -15,13 +15,7 @@ export default function Login() {
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (!club) {
-    return (
-      <div style={{ padding: "24px", textAlign: "center" }}>
-        Loading…
-      </div>
-    );
-  }
+  if (!club) return <div className="p-6 text-center">Loading…</div>;
 
   const logoSrc =
     club?.logoUrl ||
@@ -43,7 +37,7 @@ export default function Login() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
     });
@@ -58,99 +52,49 @@ export default function Login() {
       return;
     }
 
-    navigate(`/${clubSlug}/app`);
+    // 🔥 STOP HERE — MembershipProvider will handle membership creation/attachment
+    navigate(`/${clubSlug}/app/`);
   }
 
   return (
-    <div style={{ padding: "24px" }}>
-      <div
-        style={{
-          width: "100%",
-          display: "flex",
-          justifyContent: "center",
-          paddingTop: "0px",
-          paddingBottom: "0px",
-        }}
-      >
-        <div
-          className="public-column"
-          style={{
-            width: "100%",
-            maxWidth: "320px",
-            marginLeft: "auto",
-            marginRight: "auto",
-            boxSizing: "border-box",
-          }}
-        >
-          {logoSrc && (
-            <img
-              src={logoSrc}
-              alt={club.name}
-              style={{
-                height: "88px",
-                width: "auto",
-                objectFit: "contain",
-                marginBottom: "16px",
-                display: "block",
-                marginLeft: "auto",
-                marginRight: "auto",
-              }}
-            />
-          )}
+    <div className="px-6 py-8 max-w-sm mx-auto flex flex-col items-center">
+      {logoSrc && (
+        <img
+          src={logoSrc}
+          alt={club.name}
+          className="h-22 w-auto object-contain mb-4"
+        />
+      )}
 
-          <h1
-            style={{
-              fontSize: "24px",
-              fontWeight: "bold",
-              marginBottom: "24px",
-              textAlign: "center",
-            }}
-          >
-            Log In
-          </h1>
+      <h1 className="text-2xl font-bold mb-6 text-center">Log In</h1>
 
-          <form
-            onSubmit={handleLogin}
-            style={{
-              width: "100%",
-              display: "flex",
-              flexDirection: "column",
-              gap: "16px",
-            }}
-          >
-            <Input
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+      <form onSubmit={handleLogin} className="flex flex-col gap-4 w-full">
+        <TextInput
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <TextInput
+          label="Password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        {errorMsg && (
+          <p className="text-red-600 text-sm text-center">{errorMsg}</p>
+        )}
+        <Button type="submit" variant="primary" disabled={loading}>
+          {loading ? "Logging in…" : "Log In"}
+        </Button>
+      </form>
 
-            <Input
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-
-            {errorMsg && (
-              <p style={{ color: "red", fontSize: "14px", textAlign: "center" }}>
-                {errorMsg}
-              </p>
-            )}
-
-            <Button type="submit" variant="primary" disabled={loading}>
-              {loading ? "Logging in…" : "Log In"}
-            </Button>
-          </form>
-
-          <p style={{ marginTop: "24px", color: "#555", textAlign: "center" }}>
-            Don’t have an account?{" "}
-            <Link to={`/${clubSlug}/public/signup`} style={{ color: "#0A66C2" }}>
-              Sign up
-            </Link>
-          </p>
-        </div>
-      </div>
+      <p className="text-center mt-6 text-gray-600">
+        Don’t have an account?{" "}
+        <Link to={`/${clubSlug}/public/signup`} className="text-blue-600 underline">
+          Sign up
+        </Link>
+      </p>
     </div>
   );
 }

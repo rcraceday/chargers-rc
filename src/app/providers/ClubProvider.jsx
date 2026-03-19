@@ -22,21 +22,42 @@ export function useClub() {
 export default function ClubProvider({ children }) {
   const location = useLocation();
 
-  const [clubSlug, setClubSlug] = useState(null);
+  // Reserved top-level segments that are NOT club slugs
+  const RESERVED_TOP_SEGMENTS = new Set([
+    "home",
+    "public",
+    "app",
+    "login",
+    "admin",
+    "api",
+    "static",
+    "assets",
+  ]);
+
+  // Derive the top-level slug deterministically from the pathname,
+  // but ignore reserved route names so we don't treat them as club slugs.
+  const clubSlug = (() => {
+    const parts = (location.pathname || "").split("/").filter(Boolean);
+    const first = parts.length > 0 ? parts[0] : null;
+    if (!first) return null;
+    if (RESERVED_TOP_SEGMENTS.has(first.toLowerCase())) return null;
+    return first;
+  })();
+
   const [club, setClub] = useState(null);
   const [loadingClub, setLoadingClub] = useState(true);
 
-  // Extract slug from URL
-  useEffect(() => {
-    const match = location.pathname.match(/^\/([^/]+)/);
-    const slug = match?.[1] || null;
-    setClubSlug(slug);
-  }, [location.pathname]);
-
   const loadClub = useCallback(async () => {
-    // 🚫 DO NOT mark loadingClub=false when slug is missing
+    console.log("ClubProvider.loadClub start", { clubSlug, pathname: location.pathname });
+
+    // If slug is not yet available, clear loading and wait for next render
     if (!clubSlug) {
-      // We are still waiting for the router to populate the slug
+      console.log("ClubProvider: no clubSlug yet or reserved segment — clearing loading state", {
+        clubSlug,
+        pathname: location.pathname,
+      });
+      setClub(null);
+      setLoadingClub(false);
       return;
     }
 
@@ -67,11 +88,15 @@ export default function ClubProvider({ children }) {
         theme.colors = theme.colors || {};
         theme.hero = theme.hero || {};
 
-        setClub({
+        const loadedClub = {
           ...data,
           theme,
-        });
+        };
+
+        console.log("ClubProvider: club loaded", { slug: clubSlug, id: data.id, pathname: location.pathname });
+        setClub(loadedClub);
       } else {
+        console.log("ClubProvider: no club found for slug", { clubSlug, pathname: location.pathname });
         setClub(null);
       }
     } catch (err) {
@@ -79,12 +104,16 @@ export default function ClubProvider({ children }) {
       setClub(null);
     } finally {
       setLoadingClub(false);
+      console.log("ClubProvider.loadClub finished", { clubSlug, pathname: location.pathname });
     }
-  }, [clubSlug]);
+  }, [clubSlug, location.pathname]);
 
+  // Run only when the top-level clubSlug (derived) changes
   useEffect(() => {
+    console.log("ClubProvider useEffect triggered", { clubSlug, pathname: location.pathname, loadingClub });
     loadClub();
-  }, [loadClub]);
+    // Depend only on clubSlug / pathname so loadClub runs deterministically
+  }, [clubSlug, location.pathname]);
 
   return (
     <ClubContext.Provider

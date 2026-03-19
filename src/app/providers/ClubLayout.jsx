@@ -1,4 +1,5 @@
 // src/app/providers/ClubLayout.jsx
+import { Navigate, useMatch, useParams } from "react-router-dom";
 import { useClub } from "@/app/providers/ClubProvider";
 import ThemeProvider from "@/app/providers/ThemeProvider";
 import { useProfile } from "@/app/providers/ProfileProvider";
@@ -7,36 +8,26 @@ export default function ClubLayout({ children, mode = "drivers" }) {
   const { club, loadingClub } = useClub();
   const { profile, loadingProfile } = useProfile();
 
-  console.log("[ClubLayout]", {
-    club,
-    loadingClub,
-    profileRole: profile?.role,
-    loadingProfile,
-  });
+  // Diagnostic: show both nearest params and top-level match
+  const params = useParams();
+  const topMatch = useMatch("/:clubSlug/*");
+  console.log("ClubLayout params", { params, topMatch: topMatch?.params, loadingClub, loadingProfile });
 
-  const isGlobalAdmin = profile?.role === "admin";
-
-  // While club is loading, don't block UI — render children bare.
+  // While either provider is still loading, do not mount nested routes
   if (loadingClub || loadingProfile) {
+    // lightweight placeholder prevents nested route mounting and param flips
     return (
-      <div className="min-h-screen flex flex-col bg-white">
-        {children}
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div>Loading…</div>
       </div>
     );
   }
 
-  // If no club resolved:
-  // - Normal users: render bare (login/signup/etc)
-  // - Global admin: still render bare (they can navigate anywhere)
+  // Only redirect after loading finished
   if (!club) {
-    return (
-      <div className="min-h-screen flex flex-col bg-white">
-        {children}
-      </div>
-    );
+    return <Navigate to="/" replace />;
   }
 
-  // When club is available, apply theme.
   return (
     <ThemeProvider mode={mode} clubTheme={club.theme}>
       {children}

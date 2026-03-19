@@ -4,6 +4,8 @@ console.log(">>> MEMBERSHIP PROVIDER MOUNTED", import.meta.url);
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "@/supabaseClient";
 import { useProfile } from "@/app/providers/ProfileProvider";
+import { useClub } from "@/app/providers/ClubProvider";
+import { useAuth } from "@/app/providers/AuthProvider";
 
 export const MembershipContext = createContext(null);
 
@@ -11,24 +13,43 @@ export function useMembership() {
   return useContext(MembershipContext);
 }
 
-export default function MembershipProvider({ user, club, children }) {
+export default function MembershipProvider({ children }) {
+  const { user } = useAuth();
+  const { club, loadingClub } = useClub();
   const { profile, loadingProfile } = useProfile();
 
   const [membership, setMembership] = useState(null);
   const [loadingMembership, setLoadingMembership] = useState(true);
 
-  // One-shot guard: once we start loading for this mount, never start again
   const startedRef = useRef(false);
 
   useEffect(() => {
-    if (!user || !club || loadingProfile || !profile) return;
-    if (startedRef.current) return;
+    // Diagnostic log: show prerequisites and state each effect run
+    console.log("MembershipProvider useEffect", {
+      user: user ? { id: user.id, email: user.email } : null,
+      club: club ? { id: club.id, slug: club.slug } : null,
+      profile: profile ? { id: profile.id, role: profile.role } : null,
+      loadingClub,
+      loadingProfile,
+      started: startedRef.current,
+    });
 
+    // Wait until everything is ready
+    if (!user || !club || !profile) return;
+    if (loadingClub || loadingProfile) return;
+
+    if (startedRef.current) return;
     startedRef.current = true;
+
     loadMembership();
-  }, [user, club, profile, loadingProfile]);
+  }, [user, club, profile, loadingClub, loadingProfile]);
 
   async function loadMembership() {
+    console.log("MembershipProvider.loadMembership start", {
+      userId: user?.id,
+      clubId: club?.id,
+    });
+
     setLoadingMembership(true);
 
     try {
@@ -46,8 +67,14 @@ export default function MembershipProvider({ user, club, children }) {
           isAdmin: true,
         };
 
+        console.log("MembershipProvider: synthetic global admin membership", {
+          userId: user.id,
+          clubId: club.id,
+        });
+
         setMembership(synthetic);
         setLoadingMembership(false);
+        console.log("MembershipProvider.loadMembership finished (admin)");
         return;
       }
 
@@ -65,6 +92,10 @@ export default function MembershipProvider({ user, club, children }) {
 
         setMembership(normalized);
         setLoadingMembership(false);
+        console.log("MembershipProvider: existing membership found", {
+          membershipId: normalized.id,
+          isAdmin: normalized.isAdmin,
+        });
         return;
       }
 
@@ -87,6 +118,7 @@ export default function MembershipProvider({ user, club, children }) {
         console.error("[MembershipProvider] insert error", insertError);
         setMembership(null);
         setLoadingMembership(false);
+        console.log("MembershipProvider.loadMembership finished (insert error)");
         return;
       }
 
@@ -95,10 +127,14 @@ export default function MembershipProvider({ user, club, children }) {
 
       setMembership(normalized);
       setLoadingMembership(false);
+      console.log("MembershipProvider: created new membership", {
+        membershipId: normalized.id,
+      });
     } catch (err) {
       console.error("[MembershipProvider] ERROR", err);
       setMembership(null);
       setLoadingMembership(false);
+      console.log("MembershipProvider.loadMembership finished (error)");
     }
   }
 

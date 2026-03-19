@@ -1,16 +1,19 @@
 // src/app/routes.jsx
 import { Routes, Route, Navigate, useParams } from "react-router-dom";
 
+import AppProviders from "@/app/providers/AppProviders";
 import ClubLayout from "@/app/providers/ClubLayout";
 
 import AppLayout from "@/layouts/AppLayout";
 import PublicLayout from "@/layouts/PublicLayout";
 import AdminLayout from "@app/pages/admin/AdminLayout";
 
+// GLOBAL
+import ClubSelect from "@/app/pages/global/ClubSelect";
+
 // PUBLIC PAGES
 import Login from "@app/pages/public/Login";
 import Signup from "@app/pages/public/Signup";
-import Welcome from "@app/pages/public/Welcome";
 import CheckEmail from "@app/pages/public/CheckEmail";
 import ForgotPassword from "@app/pages/public/ForgotPassword";
 import ResetPassword from "@app/pages/public/ResetPassword";
@@ -51,87 +54,100 @@ import NotFound from "@app/pages/NotFound";
 
 function ClubRootRedirect() {
   const { clubSlug } = useParams();
-  return <Navigate to={`/${clubSlug}/public/welcome`} replace />;
+  if (!clubSlug) return null;
+  return <Navigate to={`/${clubSlug}/public/login`} replace />;
+}
+
+function PublicRootRedirect() {
+  const { clubSlug } = useParams();
+  if (!clubSlug) return null;
+  return <Navigate to={`/${clubSlug}/public/login`} replace />;
 }
 
 export default function RoutesFile() {
   return (
     <Routes>
+      {/* GLOBAL ROOT */}
+      <Route path="/" element={<ClubSelect />} />
+
       {/* DEFAULT CLUB ROOT */}
       <Route path="/:clubSlug" element={<ClubRootRedirect />} />
 
-      {/* PUBLIC */}
-      <Route
-        path="/:clubSlug/public/*"
-        element={
-          <ClubLayout>
-            <PublicLayout />
-          </ClubLayout>
-        }
-      >
-        <Route index element={<Welcome />} />
-        <Route path="welcome" element={<Welcome />} />
-        <Route path="login" element={<Login />} />
-        <Route path="signup" element={<Signup />} />
-        <Route path="check-email/*" element={<CheckEmail />} />
-        <Route path="forgot-password" element={<ForgotPassword />} />
-        <Route path="reset-password" element={<ResetPassword />} />
-        <Route path="*" element={<Navigate to="welcome" replace />} />
-      </Route>
+      {/* CLUB-SCOPED ROUTES (wrapped by AppProviders) */}
+      <Route element={<AppProviders />}>
 
-      {/* APP */}
-      <Route
-        path="/:clubSlug/app/*"
-        element={
-          <ClubLayout>
-            <AppLayout />
-          </ClubLayout>
-        }
-      >
-        <Route index element={<Home />} />
+        {/* PUBLIC */}
+        <Route
+          path="/:clubSlug/public/*"
+          element={
+            <ClubLayout>
+              <PublicLayout />
+            </ClubLayout>
+          }
+        >
+          <Route index element={<PublicRootRedirect />} />
+          <Route path="login" element={<Login />} />
+          <Route path="signin" element={<Signup />} />
+          <Route path="check-email/*" element={<CheckEmail />} />
+          <Route path="forgot-password" element={<ForgotPassword />} />
+          <Route path="reset-password" element={<ResetPassword />} />
+          <Route path="*" element={<Navigate to="login" replace />} />
+        </Route>
 
-        <Route path="membership" element={<JoinMembership />} />
-        <Route path="membership/join" element={<JoinMembership />} />
-        <Route path="membership/renew" element={<RenewMembership />} />
-        <Route path="membership/upgrade" element={<UpgradeMembership />} />
+        {/* APP */}
+        <Route
+          path="/:clubSlug/app/*"
+          element={
+            <ClubLayout>
+              <AppLayout />
+            </ClubLayout>
+          }
+        >
+          <Route index element={<Home />} />
 
-        <Route path="calendar" element={<Calendar />} />
-        <Route path="calendar/:id" element={<CalendarItemDetails />} />
+          <Route path="membership" element={<JoinMembership />} />
+          <Route path="membership/join" element={<JoinMembership />} />
+          <Route path="membership/renew" element={<RenewMembership />} />
+          <Route path="membership/upgrade" element={<UpgradeMembership />} />
 
-        <Route path="events" element={<Events />} />
-        <Route path="events/:id" element={<EventDetails />} />
+          <Route path="calendar" element={<Calendar />} />
+          <Route path="calendar/:id" element={<CalendarItemDetails />} />
 
-        <Route path="profile" element={<UserProfile />} />
-        <Route path="profile/drivers" element={<DriverManager />} />
-        <Route path="profile/drivers/add" element={<AddDriver />} />
-        <Route path="profile/drivers/:id/edit" element={<EditDriver />} />
-        <Route path="profile/drivers/:id" element={<DriverProfile />} />
+          <Route path="events" element={<Events />} />
+          <Route path="events/:id" element={<EventDetails />} />
 
-        {/* LOGOUT ROUTE */}
-        <Route path="logout" element={<Logout />} />
+          <Route path="profile" element={<UserProfile />} />
+          <Route path="profile/drivers" element={<DriverManager />} />
+          <Route path="profile/drivers/add" element={<AddDriver />} />
+          <Route path="profile/drivers/:id/edit" element={<EditDriver />} />
+          <Route path="profile/drivers/:id" element={<DriverProfile />} />
 
-        <Route path="*" element={<Navigate to="" replace />} />
-      </Route>
+          <Route path="logout" element={<Logout />} />
 
-      {/* ADMIN */}
-      <Route
-        path="/:clubSlug/admin/*"
-        element={
-          <ClubLayout mode="admin">
-            <AdminLayout />
-          </ClubLayout>
-        }
-      >
-        <Route index element={<AdminDashboard />} />
-        <Route path="events" element={<AdminEvents />} />
-        <Route path="events/new" element={<AdminEventEdit />} />
-        <Route path="events/:id" element={<AdminEventEdit />} />
-        <Route path="events/:id/classes" element={<AdminClassManager />} />
-        <Route path="events/:id/nominations" element={<AdminEventNominations />} />
-        <Route path="events/:id/nominations/export" element={<NominationsExport />} />
-        <Route path="championships" element={<ChampionshipsList />} />
-        <Route path="championships/create" element={<CreateChampionship />} />
-        <Route path="*" element={<Navigate to="" replace />} />
+          <Route path="*" element={<Navigate to="" replace />} />
+        </Route>
+
+        {/* ADMIN */}
+        <Route
+          path="/:clubSlug/admin/*"
+          element={
+            <ClubLayout mode="admin">
+              <AdminLayout />
+            </ClubLayout>
+          }
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="events" element={<AdminEvents />} />
+          <Route path="events/new" element={<AdminEventEdit />} />
+          <Route path="events/:id" element={<AdminEventEdit />} />
+          <Route path="events/:id/classes" element={<AdminClassManager />} />
+          <Route path="events/:id/nominations" element={<AdminEventNominations />} />
+          <Route path="events/:id/nominations/export" element={<NominationsExport />} />
+          <Route path="championships" element={<ChampionshipsList />} />
+          <Route path="championships/create" element={<CreateChampionship />} />
+          <Route path="*" element={<Navigate to="" replace />} />
+        </Route>
+
       </Route>
 
       {/* GLOBAL FALLBACK */}
