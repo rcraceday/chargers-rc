@@ -34,8 +34,7 @@ export default function ClubProvider({ children }) {
     "assets",
   ]);
 
-  // Derive the top-level slug deterministically from the pathname,
-  // but ignore reserved route names so we don't treat them as club slugs.
+  // Derive the top-level slug deterministically from the pathname
   const clubSlug = (() => {
     const parts = (location.pathname || "").split("/").filter(Boolean);
     const first = parts.length > 0 ? parts[0] : null;
@@ -48,12 +47,15 @@ export default function ClubProvider({ children }) {
   const [loadingClub, setLoadingClub] = useState(true);
 
   const loadClub = useCallback(async () => {
-    console.log("ClubProvider.loadClub start", { clubSlug, pathname: location.pathname });
+    console.log("ClubProvider.loadClub start", {
+      clubSlug,
+      pathname: location.pathname,
+    });
 
-    // 🔥 IMPORTANT FIX:
-    // If slug is not yet available (router still stabilizing), stay in loading state.
+    // 🚨 CRITICAL FIX:
+    // If slug is not ready, do NOT render children yet.
     if (!clubSlug) {
-      console.log("ClubProvider: slug not ready yet — staying in loading state", {
+      console.log("ClubProvider: slug not ready — staying in loading state", {
         clubSlug,
         pathname: location.pathname,
       });
@@ -94,7 +96,10 @@ export default function ClubProvider({ children }) {
           theme,
         };
 
-        console.log("ClubProvider: club loaded", { slug: clubSlug, id: data.id });
+        console.log("ClubProvider: club loaded", {
+          slug: clubSlug,
+          id: data.id,
+        });
         setClub(loadedClub);
       } else {
         console.log("ClubProvider: no club found for slug", { clubSlug });
@@ -107,13 +112,31 @@ export default function ClubProvider({ children }) {
       setLoadingClub(false);
       console.log("ClubProvider.loadClub finished", { clubSlug });
     }
-  }, [clubSlug]);
+  }, [clubSlug, location.pathname]);
 
-  // Run only when the top-level clubSlug changes
   useEffect(() => {
-    console.log("ClubProvider useEffect triggered", { clubSlug, pathname: location.pathname });
+    console.log("ClubProvider useEffect triggered", {
+      clubSlug,
+      pathname: location.pathname,
+    });
     loadClub();
   }, [clubSlug, loadClub]);
+
+  // 🚨 CRITICAL FIX:
+  // Do NOT render children until clubSlug is known AND club loading has completed.
+  if (!clubSlug || loadingClub) {
+    return (
+      <ClubContext.Provider
+        value={{
+          club: null,
+          loadingClub: true,
+          refreshClub: loadClub,
+        }}
+      >
+        {children}
+      </ClubContext.Provider>
+    );
+  }
 
   return (
     <ClubContext.Provider

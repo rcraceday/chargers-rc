@@ -21,7 +21,7 @@ export default function ClubLayout({ children, mode = "drivers" }) {
     clubSlug,
   });
 
-  // 🔥 NEW: Do not render anything until router provides a slug
+  // Do not render anything until router provides a slug
   if (!clubSlug) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -30,8 +30,10 @@ export default function ClubLayout({ children, mode = "drivers" }) {
     );
   }
 
-  // While either provider is still loading, do not mount nested routes
-  if (loadingClub || loadingProfile) {
+  // 🚨 CRITICAL FIX:
+  // Do NOT render children until BOTH club and profile are fully loaded.
+  // This prevents downstream providers from crashing during boot.
+  if (loadingClub || loadingProfile || !club || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div>Loading…</div>

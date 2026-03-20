@@ -44,9 +44,7 @@ export default function DriverProvider({ children }) {
     console.debug("[DriverProvider] loadDrivers called");
 
     if (inFlightRef.current) {
-      console.debug(
-        "[DriverProvider] loadDrivers skipped — already in flight"
-      );
+      console.debug("[DriverProvider] loadDrivers skipped — already in flight");
       return;
     }
 
@@ -72,9 +70,7 @@ export default function DriverProvider({ children }) {
     inFlightRef.current = true;
     clearWatchdog();
     watchdogRef.current = setTimeout(() => {
-      console.warn(
-        "[DriverProvider] watchdog: clearing inFlightRef after timeout"
-      );
+      console.warn("[DriverProvider] watchdog: clearing inFlightRef after timeout");
       inFlightRef.current = false;
       watchdogRef.current = null;
     }, 30000);
@@ -116,19 +112,12 @@ export default function DriverProvider({ children }) {
         error = response.error;
         status = response.status;
 
-        console.debug(
-          "[DriverProvider] global admin load — by club_id",
-          {
-            clubId: membership.club_id,
-            status,
-            error,
-            rows: Array.isArray(data)
-              ? data.length
-              : data
-              ? 1
-              : 0,
-          }
-        );
+        console.debug("[DriverProvider] global admin load — by club_id", {
+          clubId: membership.club_id,
+          status,
+          error,
+          rows: Array.isArray(data) ? data.length : data ? 1 : 0,
+        });
       } else {
         // Normal user: load drivers for this membership only
         const response = await supabase
@@ -145,11 +134,7 @@ export default function DriverProvider({ children }) {
           membershipId: membership.id,
           status,
           error,
-          rows: Array.isArray(data)
-            ? data.length
-            : data
-            ? 1
-            : 0,
+          rows: Array.isArray(data) ? data.length : data ? 1 : 0,
         });
       }
 
@@ -214,9 +199,7 @@ export default function DriverProvider({ children }) {
     }
 
     if (!membership?.id) {
-      console.debug(
-        "[DriverProvider] no membership.id — clearing drivers (useEffect)"
-      );
+      console.debug("[DriverProvider] no membership.id — clearing drivers (useEffect)");
       setDrivers([]);
       setLoadingDrivers(false);
       return;
@@ -226,10 +209,7 @@ export default function DriverProvider({ children }) {
       try {
         await loadDrivers();
       } catch (err) {
-        console.error(
-          "[DriverProvider] loadDrivers invocation error",
-          err
-        );
+        console.error("[DriverProvider] loadDrivers invocation error", err);
       }
     })();
   }, [
@@ -240,6 +220,13 @@ export default function DriverProvider({ children }) {
     loadingMembership,
     loadDrivers,
   ]);
+
+  // 🚨 CRITICAL FIX:
+  // Do NOT render children until membership is fully ready.
+  // This prevents downstream components from crashing during boot.
+  if (!user || loadingUser || !membership || loadingMembership) {
+    return children; // or <LoadingScreen />
+  }
 
   return (
     <DriverContext.Provider
