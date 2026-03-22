@@ -29,6 +29,7 @@ import Calendar from "@app/pages/events/calendar/Calendar";
 import CalendarItemDetails from "@app/pages/events/calendar/CalendarItemDetails";
 
 import UserProfile from "@app/pages/profile/UserProfile";
+import EditProfile from "@app/pages/profile/EditProfile";   // ⭐ ADDED
 import DriverManager from "@app/pages/profile/DriverManager";
 import DriverProfile from "@app/pages/profile/DriverProfile";
 import AddDriver from "@app/pages/profile/AddDriver";
@@ -45,6 +46,7 @@ import AdminEventNominations from "@app/pages/admin/nominations/AdminEventNomina
 import NominationsExport from "@app/pages/admin/NominationsExport";
 
 // MEMBERSHIP
+import Membership from "@app/pages/membership/Membership";
 import JoinMembership from "@app/pages/membership/JoinMembership";
 import RenewMembership from "@app/pages/membership/RenewMembership";
 import UpgradeMembership from "@app/pages/membership/UpgradeMembership";
@@ -110,12 +112,12 @@ export default function RoutesFile() {
           <Route index element={<Home />} />
 
           {/* MEMBERSHIP */}
-          <Route path="membership" element={<JoinMembership />} />
+          <Route path="membership" element={<Membership />} />
           <Route path="membership/join" element={<JoinMembership />} />
           <Route path="membership/renew" element={<RenewMembership />} />
           <Route path="membership/upgrade" element={<UpgradeMembership />} />
 
-          {/* ⭐ NEW CALENDAR ROUTES */}
+          {/* CALENDAR */}
           <Route path="calendar" element={<Calendar />} />
           <Route path="calendar/:id" element={<CalendarItemDetails />} />
 
@@ -125,6 +127,7 @@ export default function RoutesFile() {
 
           {/* PROFILE */}
           <Route path="profile" element={<UserProfile />} />
+          <Route path="profile/edit" element={<EditProfile />} />   {/* ⭐ ADDED */}
           <Route path="profile/drivers" element={<DriverManager />} />
           <Route path="profile/drivers/add" element={<AddDriver />} />
           <Route path="profile/drivers/:id/edit" element={<EditDriver />} />

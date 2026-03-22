@@ -5,9 +5,9 @@ import { IdentificationIcon } from "@heroicons/react/24/solid";
 import { useClub } from "@/app/providers/ClubProvider";
 import Button from "@/components/ui/Button";
 
-import { renewMembership } from "@/app/api/membership/membershipAPI";
+import { moveToFamily } from "@/app/api/membership/membershipAPI";
 
-export default function RenewMembership() {
+export default function ChangeMembership() {
   const { clubSlug } = useParams();
   const navigate = useNavigate();
   const { club } = useClub();
@@ -19,7 +19,7 @@ export default function RenewMembership() {
 
   const membershipId = new URLSearchParams(window.location.search).get("id");
 
-  const handleRenew = async () => {
+  const handleMove = async () => {
     if (!membershipId) {
       setError("Membership ID missing.");
       return;
@@ -28,10 +28,10 @@ export default function RenewMembership() {
     setProcessing(true);
     setError("");
 
-    const { error } = await renewMembership(membershipId);
+    const { error } = await moveToFamily(membershipId);
 
     if (error) {
-      setError("Something went wrong renewing your membership.");
+      setError("Something went wrong updating your membership.");
       setProcessing(false);
       return;
     }
@@ -48,7 +48,7 @@ export default function RenewMembership() {
           <div className="flex items-center gap-2">
             <IdentificationIcon className="h-5 w-5" style={{ color: brand }} />
             <h1 className="text-xl font-semibold tracking-tight">
-              Renew Membership
+              Move to Family Membership
             </h1>
           </div>
 
@@ -66,11 +66,12 @@ export default function RenewMembership() {
       <main className="max-w-6xl mx-auto px-4 pt-10 pb-12">
 
         <section className="rounded-xl border border-surfaceBorder bg-surface p-6 space-y-6 max-w-xl">
-          <h2 className="text-lg font-semibold">Extend Your Membership</h2>
+          <h2 className="text-lg font-semibold">Upgrade to Family</h2>
 
           <p className="text-text-muted text-sm leading-relaxed">
-            Renew your membership for another year. Your new expiry date will be
-            added to your current membership period.
+            Family Membership allows you to include parents/guardians and junior
+            drivers under one account. This is ideal for households with multiple
+            racers.
           </p>
 
           <div
@@ -81,10 +82,8 @@ export default function RenewMembership() {
               boxShadow: `0 0 0 3px ${brand}22`,
             }}
           >
-            <p className="font-medium text-text-base">12‑Month Renewal</p>
-            <p className="text-sm text-text-muted">
-              Adds one year to your current membership.
-            </p>
+            <p className="font-medium text-text-base">Family Membership</p>
+            <p className="text-sm text-text-muted">Includes all household drivers</p>
           </div>
 
           {error && <p className="text-sm text-red-500">{error}</p>}
@@ -94,9 +93,9 @@ export default function RenewMembership() {
               variant="primary"
               className="!w-auto !px-5 !py-2.5 !text-sm"
               disabled={processing}
-              onClick={handleRenew}
+              onClick={handleMove}
             >
-              {processing ? "Processing…" : "Renew Membership"}
+              {processing ? "Processing…" : "Move to Family"}
             </Button>
           </div>
         </section>

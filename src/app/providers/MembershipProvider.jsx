@@ -33,7 +33,6 @@ export default function MembershipProvider({ children }) {
       started: startedRef.current,
     });
 
-    // Wait until everything is ready
     if (!user || !club || !profile) return;
     if (loadingClub || loadingProfile) return;
 
@@ -66,14 +65,8 @@ export default function MembershipProvider({ children }) {
           isAdmin: true,
         };
 
-        console.log("MembershipProvider: synthetic global admin membership", {
-          userId: user.id,
-          clubId: club.id,
-        });
-
         setMembership(synthetic);
         setLoadingMembership(false);
-        console.log("MembershipProvider.loadMembership finished (admin)");
         return;
       }
 
@@ -91,14 +84,10 @@ export default function MembershipProvider({ children }) {
 
         setMembership(normalized);
         setLoadingMembership(false);
-        console.log("MembershipProvider: existing membership found", {
-          membershipId: normalized.id,
-          isAdmin: normalized.isAdmin,
-        });
         return;
       }
 
-      // CREATE NEW MEMBERSHIP
+      // CREATE NEW MEMBERSHIP (non_member)
       const { data: created, error: insertError } = await supabase
         .from("household_memberships")
         .insert({
@@ -117,7 +106,6 @@ export default function MembershipProvider({ children }) {
         console.error("[MembershipProvider] insert error", insertError);
         setMembership(null);
         setLoadingMembership(false);
-        console.log("MembershipProvider.loadMembership finished (insert error)");
         return;
       }
 
@@ -126,14 +114,10 @@ export default function MembershipProvider({ children }) {
 
       setMembership(normalized);
       setLoadingMembership(false);
-      console.log("MembershipProvider: created new membership", {
-        membershipId: normalized.id,
-      });
     } catch (err) {
       console.error("[MembershipProvider] ERROR", err);
       setMembership(null);
       setLoadingMembership(false);
-      console.log("MembershipProvider.loadMembership finished (error)");
     }
   }
 
@@ -165,12 +149,21 @@ export default function MembershipProvider({ children }) {
     return m;
   }
 
+  const isNonMember = membership?.membership_type === "non_member";
+  const isPaidMember =
+    membership &&
+    membership.membership_type !== "non_member" &&
+    membership.membership_type !== "global_admin";
+
   return (
     <MembershipContext.Provider
       value={{
         membership,
         loadingMembership,
-        isNonMember: membership?.membership_type === "non_member",
+
+        // Correct membership classification
+        isNonMember,
+        isMember: isPaidMember,
         isJunior: membership?.membership_type === "junior",
         isSingle: membership?.membership_type === "single",
         isFamily: membership?.membership_type === "family",

@@ -27,9 +27,7 @@ export default function AppLayout() {
     <div className="min-h-screen flex flex-col bg-white">
       <Header club={club} />
       <main className="flex-1 w-full">
-        <div className="max-w-[1024px] mx-auto px-4 py-6">
-          <Outlet context={{ club }} />
-        </div>
+        <Outlet context={{ club }} />
       </main>
     </div>
   );

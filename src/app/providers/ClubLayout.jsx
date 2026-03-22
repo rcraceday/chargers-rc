@@ -1,5 +1,5 @@
 // src/app/providers/ClubLayout.jsx
-import { Navigate, useMatch, useParams, useLocation } from "react-router-dom";
+import { Navigate, useParams, useLocation } from "react-router-dom";
 import { useClub } from "@/app/providers/ClubProvider";
 import ThemeProvider from "@/app/providers/ThemeProvider";
 import { useProfile } from "@/app/providers/ProfileProvider";
@@ -7,31 +7,16 @@ import { useAuth } from "@/app/providers/AuthProvider";
 import Footer from "@/components/ui/Footer";
 
 export default function ClubLayout({ children, mode = "drivers" }) {
+  const { clubSlug } = useParams();
+  const location = useLocation();
+
   const { club, loadingClub } = useClub();
   const { profile, loadingProfile } = useProfile();
   const { user, loadingUser } = useAuth();
-  const location = useLocation();
-
-  const params = useParams();
-  const topMatch = useMatch("/:clubSlug/*");
-  const clubSlug = topMatch?.params?.clubSlug || null;
 
   const isPublicRoute = location.pathname.includes("/public/");
 
-  console.log("ClubLayout params", {
-    params,
-    topMatch: topMatch?.params,
-    loadingClub,
-    loadingProfile,
-    loadingUser,
-    clubSlug,
-    isPublicRoute,
-  });
-
-  // Confirm support email is flowing through
-  console.log("Club support email:", club?.system_support_email);
-
-  // Router hasn't stabilized yet
+  // If slug missing, show loading (rare but safe)
   if (!clubSlug) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -40,7 +25,9 @@ export default function ClubLayout({ children, mode = "drivers" }) {
     );
   }
 
-  // 🚨 PUBLIC ROUTES: only require club to load
+  //
+  // PUBLIC ROUTES
+  //
   if (isPublicRoute) {
     if (loadingClub || !club) {
       return (
@@ -52,13 +39,19 @@ export default function ClubLayout({ children, mode = "drivers" }) {
 
     return (
       <ThemeProvider mode={mode} clubTheme={club.theme}>
-        {children}
+        <div className="w-full flex justify-center">
+          <div className="w-full max-w-5xl px-4">
+            {children}
+          </div>
+        </div>
         <Footer />
       </ThemeProvider>
     );
   }
 
-  // 🚨 PRIVATE ROUTES: require user + profile + club
+  //
+  // PRIVATE ROUTES
+  //
   if (!loadingUser && !user) {
     return <Navigate to={`/${clubSlug}/public/login`} replace />;
   }
@@ -77,7 +70,11 @@ export default function ClubLayout({ children, mode = "drivers" }) {
 
   return (
     <ThemeProvider mode={mode} clubTheme={club.theme}>
-      {children}
+      <div className="w-full flex justify-center">
+        <div className="w-full max-w-5xl px-4">
+          {children}
+        </div>
+      </div>
       <Footer />
     </ThemeProvider>
   );

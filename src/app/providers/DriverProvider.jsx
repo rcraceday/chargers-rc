@@ -221,11 +221,9 @@ export default function DriverProvider({ children }) {
     loadDrivers,
   ]);
 
-  // 🚨 CRITICAL FIX:
-  // Do NOT render children until membership is fully ready.
-  // This prevents downstream components from crashing during boot.
-  if (!user || loadingUser || !membership || loadingMembership) {
-    return children; // or <LoadingScreen />
+  // 🚨 FIXED: Do NOT block on !membership
+  if (!user || loadingUser || loadingMembership) {
+    return children; // still booting
   }
 
   return (

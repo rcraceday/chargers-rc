@@ -17,6 +17,7 @@ import {
   UserPlusIcon,
   IdentificationIcon,
   TrophyIcon,
+  UserIcon,
 } from "@heroicons/react/24/solid";
 
 export default function Home() {
@@ -248,6 +249,17 @@ export default function Home() {
             >
               <IdentificationIcon className="h-7 w-7 text-white" />
               <span className="text-sm font-medium text-white">Membership</span>
+            </Button>
+          </Link>
+
+          {/* ⭐ NEW PROFILE BUTTON */}
+          <Link to={`/${clubSlug}/app/profile`} className="no-underline">
+            <Button
+              className="!rounded-lg !p-4 !w-full !h-full flex flex-col items-center justify-center gap-2"
+              style={{ backgroundColor: brand }}
+            >
+              <UserIcon className="h-7 w-7 text-white" />
+              <span className="text-sm font-medium text-white">Profile</span>
             </Button>
           </Link>
 
