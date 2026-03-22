@@ -1,7 +1,34 @@
+/* ===========================
+   IMPORTS
+   =========================== */
+
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/supabaseClient";
 import Card from "@/components/ui/Card";
+import { useClub } from "@/app/providers/ClubProvider";
+import { useNavigate } from "react-router-dom";
+import {
+  CalendarDaysIcon,
+  ArrowLeftIcon,
+} from "@heroicons/react/24/solid";
+
+/* ===========================
+   HELPERS
+   =========================== */
+
+// Clean nomination window logic (timestamps)
+function isNominationsOpen(event) {
+  if (!event.nominations_open || !event.nominations_close) return false;
+
+  const open = new Date(event.nominations_open);
+  const close = new Date(event.nominations_close);
+  const now = new Date();
+
+  if (isNaN(open.getTime()) || isNaN(close.getTime())) return false;
+
+  return now >= open && now <= close;
+}
 
 function formatDate(dateString) {
   if (!dateString) return "";
@@ -13,26 +40,36 @@ function formatDate(dateString) {
   });
 }
 
-function formatDateTime(dateString) {
+function formatTime12(dateString) {
   if (!dateString) return "";
-  const date = new Date(dateString);
-  return date.toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
+  const d = new Date(dateString);
+  return d.toLocaleTimeString("en-AU", {
+    hour: "numeric",
     minute: "2-digit",
+    hour12: true,
   });
 }
 
+/* ===========================
+   COMPONENT
+   =========================== */
+
 export default function EventDetails() {
+  const navigate = useNavigate();
+
   const { id, clubSlug } = useParams();
+  const { club } = useClub();
+  const brand = club?.theme?.hero?.backgroundColor || "#0A66C2";
 
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const [attending, setAttending] = useState([]);
   const [loadingAttending, setLoadingAttending] = useState(true);
+
+  /* ===========================
+     FETCH EVENT
+     =========================== */
 
   useEffect(() => {
     async function loadEvent() {
@@ -52,7 +89,10 @@ export default function EventDetails() {
     loadEvent();
   }, [id]);
 
-  // ⭐ Load drivers attending (nominations)
+  /* ===========================
+     FETCH ATTENDING DRIVERS
+     =========================== */
+
   useEffect(() => {
     async function loadAttending() {
       setLoadingAttending(true);
@@ -88,12 +128,14 @@ export default function EventDetails() {
     loadAttending();
   }, [id]);
 
+  /* ===========================
+     LOADING / NOT FOUND
+     =========================== */
+
   if (loading) {
     return (
       <div className="min-h-screen flex justify-center px-4 py-6">
-        <div className="w-full max-w-xl">
-          <p className="text-text-muted">Loading event…</p>
-        </div>
+        <p className="text-text-muted">Loading event…</p>
       </div>
     );
   }
@@ -101,26 +143,27 @@ export default function EventDetails() {
   if (!event) {
     return (
       <div className="min-h-screen flex justify-center px-4 py-6">
-        <div className="w-full max-w-xl">
-          <p className="text-text-muted">Event not found.</p>
-        </div>
+        <p className="text-text-muted">Event not found.</p>
       </div>
     );
   }
 
-  const now = new Date();
-  const open = event.nominations_open ? new Date(event.nominations_open) : null;
-  const close = event.nominations_close ? new Date(event.nominations_close) : null;
+  /* ===========================
+     NORMALISED VALUES
+     =========================== */
 
-  const nominationsOpen =
-    open && close && now >= open && now <= close;
+  const logo = event.logoUrl || event.logourl || null;
+  const track = event.track_type || event.track || "Unknown";
 
-  // ⭐ Event type badge
-  const type = event.type || "race";
+  const type = (event.event_type || "racing").toLowerCase();
+
   const typeColors = {
-    race: "#00438A",
+    racing: "#00438A",
     practice: "#008A2E",
-    meeting: "#8A0043",
+    club_meet: "#8A0043",
+    championship_round: "#7B3F00",
+    state_titles: "#9C27B0",
+    national_titles: "#B71C1C",
   };
 
   const badgeStyle = {
@@ -134,17 +177,32 @@ export default function EventDetails() {
     display: "inline-block",
   };
 
-  // ⭐ ICS download
+  const typeLabel = {
+    racing: "Racing",
+    practice: "Practice",
+    club_meet: "Club Meet",
+    championship_round: "Championship Round",
+    state_titles: "State Titles",
+    national_titles: "National Titles",
+  }[type];
+
+  const nominationsOpen = isNominationsOpen(event);
+  const isPast = new Date(event.event_date) < new Date();
+
+  /* ===========================
+     ICS DOWNLOAD
+     =========================== */
+
   function downloadICS() {
     const start = new Date(event.event_date);
-    const end = new Date(start.getTime() + 3 * 60 * 60 * 1000); // 3 hours default
+    const end = new Date(start.getTime() + 3 * 60 * 60 * 1000);
 
     const pad = (n) => String(n).padStart(2, "0");
 
     const formatICS = (d) =>
-      `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(
-        d.getUTCHours()
-      )}${pad(d.getUTCMinutes())}00Z`;
+      `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(
+        d.getUTCDate()
+      )}T${pad(d.getUTCHours())}${pad(d.getUTCHours())}00Z`;
 
     const ics = `
 BEGIN:VCALENDAR
@@ -155,7 +213,7 @@ UID:${event.id}
 DTSTAMP:${formatICS(new Date())}
 DTSTART:${formatICS(start)}
 DTEND:${formatICS(end)}
-SUMMARY:${event.event_name || event.name}
+SUMMARY:${event.name}
 DESCRIPTION:${event.description || ""}
 END:VEVENT
 END:VCALENDAR
@@ -166,121 +224,133 @@ END:VCALENDAR
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${event.event_name || event.name}.ics`;
+    a.download = `${event.name}.ics`;
     a.click();
 
     URL.revokeObjectURL(url);
   }
 
+  /* ===========================
+     PAGE LAYOUT
+     =========================== */
+
   return (
     <div className="min-h-screen w-full bg-background text-text-base">
 
-      {/* HERO */}
-      <section className="w-full bg-surface">
-        <div className="max-w-6xl mx-auto px-4 pt-10 pb-10">
+      {/* ===========================
+          PAGE HEADER
+          =========================== */}
 
-          <div
-            className="rounded-lg"
-            style={{
-              padding: "3px",
-              background:
-                "linear-gradient(315deg, #2e3192, #00aeef, #2e3192)",
-              boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
-            }}
-          >
-            <div
-              className="rounded-md text-center"
-              style={{
-                background: "#00438A",
-                padding: "28px 16px",
-              }}
-            >
-              <h1
-                className="text-3xl font-semibold tracking-tight"
-                style={{ color: "white" }}
-              >
-                {event.event_name || event.name}
-              </h1>
-            </div>
+      <section className="w-full border-b border-surfaceBorder bg-surface">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+
+          <div className="flex items-center gap-2">
+            <CalendarDaysIcon className="h-5 w-5" style={{ color: brand }} />
+            <h1 className="text-xl font-semibold tracking-tight">Event Details</h1>
           </div>
 
+          <button
+            onClick={() => navigate(`/${clubSlug}/app/events`)}
+            className="flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-md border shadow-sm bg-white"
+            style={{ borderColor: brand }}
+          >
+            <ArrowLeftIcon className="h-4 w-4" style={{ color: brand }} />
+            Events
+          </button>
         </div>
       </section>
 
-      {/* MAIN CONTENT */}
-      <main className="max-w-6xl mx-auto px-4 pt-10 pb-12 space-y-10">
+      {/* ===========================
+          MAIN CONTENT
+          =========================== */}
 
-        {/* EVENT INFO */}
+      <main className="max-w-6xl mx-auto px-4 pb-16 space-y-12">
+
+        {/* ===========================
+            EVENT CARD
+            =========================== */}
+
         <section>
-          <h2 className="text-sm font-semibold tracking-[0.18em] uppercase text-text-muted mb-3">
-            Event Information
-          </h2>
+          <Card className="p-6" style={{ border: `2px solid ${brand}` }}>
+            <div className="flex flex-col md:flex-row gap-6 items-start">
 
-          <Card>
-
-            {/* Logo */}
-            {event.event_logo && (
-              <div className="w-full h-48 rounded-md bg-white overflow-hidden flex items-center justify-center mb-4">
-                <img
-                  src={event.event_logo}
-                  alt="Event Logo"
-                  className="w-full h-full object-contain"
-                />
+              {/* LOGO */}
+              <div className="w-32 h-32 bg-white border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                {logo && (
+                  <img src={logo} alt="Event Logo" className="w-full h-full object-contain" />
+                )}
               </div>
-            )}
 
-            {/* Type badge */}
-            <div className="mb-3">
-              <span style={badgeStyle}>{type}</span>
+              {/* METADATA */}
+              <div className="flex-1 space-y-3">
+                <div className="text-lg font-semibold leading-snug">{event.name}</div>
+
+                <div className="text-sm text-text-muted leading-tight space-y-1">
+                  <div><strong>Event Date:</strong> {formatDate(event.event_date)}</div>
+                  <div><strong>Event Type:</strong> {typeLabel}</div>
+                  <div><strong>Track:</strong> {track}</div>
+                </div>
+
+                {/* ⭐ NEW — EVENT SCHEDULE */}
+                <div className="mt-4">
+                  <h3 className="font-semibold mb-1">Event Schedule</h3>
+                  <ul className="text-sm text-text-muted leading-tight space-y-1">
+                    <li><strong>Event Opens:</strong> {formatTime12(event.event_opens_at)}</li>
+                    <li><strong>Drivers Briefing:</strong> {formatTime12(event.drivers_briefing_at)}</li>
+                    <li><strong>Event Closes:</strong> {formatTime12(event.event_closes_at)}</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* ACTIONS */}
+              <div className="flex flex-col gap-2 md:flex-shrink-0 w-full md:w-auto">
+
+                {!isPast && (
+                  <button
+                    onClick={downloadICS}
+                    className="px-3 py-1.5 rounded-md font-semibold text-white text-sm self-start md:self-auto"
+                    style={{ background: brand }}
+                  >
+                    Add to Calendar
+                  </button>
+                )}
+
+                {isPast && (
+                  <Link to={`/${clubSlug}/app/events/${event.id}/results`} className="no-underline">
+                    <button
+                      className="px-3 py-1.5 rounded-md font-semibold text-white text-sm self-start md:self-auto"
+                      style={{ background: brand }}
+                    >
+                      View Results
+                    </button>
+                  </Link>
+                )}
+              </div>
             </div>
 
-            {/* Date */}
-            <div className="text-lg font-medium mb-2">
-              {formatDate(event.event_date)}
-            </div>
-
-            {/* Track */}
-            {event.track_type && (
-              <div className="text-text-muted mb-4">
-                <span className="font-semibold">Track:</span> {event.track_type}
-              </div>
-            )}
-
-            {/* Description */}
+            {/* DESCRIPTION */}
             {event.description && (
-              <div className="mb-6">
+              <div className="mt-6">
                 <h3 className="font-semibold mb-2">Event Details</h3>
                 <p className="text-text-base whitespace-pre-line leading-relaxed">
                   {event.description}
                 </p>
               </div>
             )}
-
-            {/* Add to Calendar */}
-            <button
-              onClick={downloadICS}
-              className="mt-4 px-4 py-2 rounded-md font-semibold"
-              style={{
-                background: "#00438A",
-                color: "white",
-              }}
-            >
-              Add to Calendar
-            </button>
-
           </Card>
         </section>
 
-        {/* DRIVERS ATTENDING */}
+        {/* ===========================
+            DRIVERS ATTENDING
+            =========================== */}
+
         <section>
-          <h2 className="text-sm font-semibold tracking-[0.18em] uppercase text-text-muted mb-3">
+          <h2 className="text-sm font-semibold tracking-wide uppercase text-text-muted mb-3">
             Drivers Attending
           </h2>
 
-          <Card>
-            {loadingAttending && (
-              <p className="text-text-muted">Loading drivers…</p>
-            )}
+          <Card className="p-4" style={{ border: `2px solid ${brand}` }}>
+            {loadingAttending && <p className="text-text-muted">Loading drivers…</p>}
 
             {!loadingAttending && attending.length === 0 && (
               <p className="text-text-muted">No nominations yet.</p>
@@ -294,24 +364,20 @@ END:VCALENDAR
                     className="flex items-center justify-between border-b border-gray-200 pb-2"
                   >
                     <div className="flex items-center gap-3">
-
-                      {/* Driver number */}
                       {d.number && (
                         <div
                           className="w-10 h-10 rounded-md flex items-center justify-center text-white font-bold"
-                          style={{ background: "#00438A" }}
+                          style={{ background: brand }}
                         >
                           {d.number}
                         </div>
                       )}
 
-                      {/* Name */}
                       <div className="text-text-base font-medium">
                         {d.first_name} {d.last_name}
                       </div>
                     </div>
 
-                    {/* Junior badge */}
                     {d.is_junior && (
                       <span
                         className="px-2 py-1 rounded-md text-xs font-semibold"
@@ -327,39 +393,37 @@ END:VCALENDAR
           </Card>
         </section>
 
-        {/* EVENT RESULTS */}
+        {/* ===========================
+            EVENT RESULTS
+            =========================== */}
+
         <section>
-          <h2 className="text-sm font-semibold tracking-[0.18em] uppercase text-text-muted mb-3">
+          <h2 className="text-sm font-semibold tracking-wide uppercase text-text-muted mb-3">
             Event Results
           </h2>
 
-          <Card>
-            <p className="text-text-muted">
-              No results posted yet.
-            </p>
+          <Card className="p-4" style={{ border: `2px solid ${brand}` }}>
+            <p className="text-text-muted">No results posted yet.</p>
           </Card>
         </section>
 
-        {/* NOMINATE BUTTON */}
+        {/* ===========================
+            NOMINATION BUTTON
+            =========================== */}
+
         <section>
           {nominationsOpen ? (
             <Link
-              to={`/${clubSlug}/nominations/${event.id}/start`}
-              className="block text-center py-3 rounded-md font-semibold"
-              style={{
-                background: "#00438A",
-                color: "white",
-              }}
+              to={`/${clubSlug}/app/nominate?eventId=${event.id}`}
+              className="block text-center py-3 rounded-md font-semibold text-white"
+              style={{ background: "#16A34A" }}
             >
               Nominate for this Event
             </Link>
           ) : (
             <div
               className="text-center py-3 rounded-md font-semibold"
-              style={{
-                background: "#d1d5db",
-                color: "#374151",
-              }}
+              style={{ background: "#d1d5db", color: "#374151" }}
             >
               Nominations Closed
             </div>

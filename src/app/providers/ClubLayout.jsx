@@ -4,6 +4,7 @@ import { useClub } from "@/app/providers/ClubProvider";
 import ThemeProvider from "@/app/providers/ThemeProvider";
 import { useProfile } from "@/app/providers/ProfileProvider";
 import { useAuth } from "@/app/providers/AuthProvider";
+import Footer from "@/components/ui/Footer";
 
 export default function ClubLayout({ children, mode = "drivers" }) {
   const { club, loadingClub } = useClub();
@@ -27,7 +28,7 @@ export default function ClubLayout({ children, mode = "drivers" }) {
     isPublicRoute,
   });
 
-  // ⭐ NEW: Confirm support email is flowing through
+  // Confirm support email is flowing through
   console.log("Club support email:", club?.system_support_email);
 
   // Router hasn't stabilized yet
@@ -52,6 +53,7 @@ export default function ClubLayout({ children, mode = "drivers" }) {
     return (
       <ThemeProvider mode={mode} clubTheme={club.theme}>
         {children}
+        <Footer />
       </ThemeProvider>
     );
   }
@@ -76,6 +78,7 @@ export default function ClubLayout({ children, mode = "drivers" }) {
   return (
     <ThemeProvider mode={mode} clubTheme={club.theme}>
       {children}
+      <Footer />
     </ThemeProvider>
   );
 }

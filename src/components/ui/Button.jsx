@@ -41,9 +41,17 @@ export default function Button({
       text: brand,
       border: brand,
     },
+
+    // ⭐ NEW SUCCESS VARIANT (GREEN BUTTON)
+    success: {
+      bg: "#16A34A",       // Green
+      hover: "#15803D",    // Darker green on hover
+      text: "#FFFFFF",
+      border: "#15803D",
+    },
   };
 
-  const style = variants[variant];
+  const style = variants[variant] || variants.primary;
 
   return (
     <button

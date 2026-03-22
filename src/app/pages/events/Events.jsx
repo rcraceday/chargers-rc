@@ -1,7 +1,27 @@
-import { useEffect, useState, useMemo } from "react";
+/* ===========================
+   IMPORTS
+   =========================== */
+
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
+
+import { useClub } from "@/app/providers/ClubProvider";
+
 import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+
+import {
+  CalendarDaysIcon,
+  FunnelIcon,
+  ArchiveBoxIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+} from "@heroicons/react/24/solid";
+
+/* ===========================
+   DATE FORMATTER
+   =========================== */
 
 function formatDate(dateString) {
   if (!dateString) return "";
@@ -13,18 +33,71 @@ function formatDate(dateString) {
   });
 }
 
-export default function Events() {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
+/* ===========================
+   EVENT TYPE LABELS
+   =========================== */
 
-  // ⭐ Filters
+const TYPE_LABELS = {
+  racing: "Racing",
+  practice: "Practice",
+  club_meet: "Club Meet",
+  championship_round: "Championship Round",
+  state_titles: "State Titles",
+  national_titles: "National Titles",
+};
+
+/* ===========================
+   HELPERS
+   =========================== */
+
+function isNominationsOpen(event) {
+  if (!event.nominations_open || !event.nominations_close) return false;
+
+  const open = new Date(event.nominations_open);
+  const close = new Date(event.nominations_close);
+  const now = new Date();
+
+  if (isNaN(open.getTime()) || isNaN(close.getTime())) return false;
+
+  return now >= open && now <= close;
+}
+
+/* ===========================
+   COMPONENT
+   =========================== */
+
+export default function Events() {
+  /* ===========================
+     HOOKS + BRAND COLOR
+     =========================== */
+
+  const { club } = useClub();
+  const brand = club?.theme?.hero?.backgroundColor || "#0A66C2";
+
+  const { clubSlug } = useParams();
+
+  /* ===========================
+     FILTER STATE
+     =========================== */
+
   const [query, setQuery] = useState("");
   const [trackFilter, setTrackFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all"); // open / closed
-  const [sortOrder, setSortOrder] = useState("asc"); // asc / desc
+  const [sortOrder, setSortOrder] = useState("asc");
 
-  const { clubSlug } = useParams();
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [pastOpen, setPastOpen] = useState(false);
+
+  /* ===========================
+     DATA
+     =========================== */
+
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  /* ===========================
+     FETCH EVENTS
+     =========================== */
 
   useEffect(() => {
     async function loadEvents() {
@@ -35,9 +108,7 @@ export default function Events() {
         .select("*")
         .order("event_date", { ascending: true });
 
-      if (!error && data) {
-        setEvents(data);
-      }
+      if (!error && data) setEvents(data);
 
       setLoading(false);
     }
@@ -45,49 +116,48 @@ export default function Events() {
     loadEvents();
   }, []);
 
-  // ⭐ Split into upcoming + past
-  const now = new Date();
+  /* ===========================
+     UPCOMING + PAST SPLIT
+     =========================== */
 
+  const now = new Date();
   const upcoming = events.filter((e) => new Date(e.event_date) >= now);
   const past = events.filter((e) => new Date(e.event_date) < now);
 
-  // ⭐ Apply search + dropdown filters (forgiving + robust)
+  /* ===========================
+     FILTER LOGIC
+     =========================== */
+
   function applyFilters(list) {
     return list.filter((e) => {
       const q = query.toLowerCase();
 
-      const name = (e.event_name || e.name || "").toLowerCase();
+      const name = (e.name || "").toLowerCase();
       const track = (e.track_type || e.track || "").toLowerCase();
-      const type = (e.event_type || e.type || "").toLowerCase();
+      const type = (e.event_type || "racing").toLowerCase();
+
       const dateStr = formatDate(e.event_date).toLowerCase();
-      const isOpen = e.is_open === true;
 
       const matchesQuery =
-        !q ||
-        name.includes(q) ||
-        track.includes(q) ||
-        dateStr.includes(q);
+        !q || name.includes(q) || track.includes(q) || dateStr.includes(q);
 
       const matchesTrack =
-        trackFilter === "all" || track.includes(trackFilter);
+        trackFilter === "all" || track.includes(trackFilter.toLowerCase());
 
       const matchesType =
-        typeFilter === "all" || type.includes(typeFilter);
+        typeFilter === "all" || type === typeFilter.toLowerCase();
 
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "open" && isOpen) ||
-        (statusFilter === "closed" && !isOpen);
-
-      return matchesQuery && matchesTrack && matchesType && matchesStatus;
+      return matchesQuery && matchesTrack && matchesType;
     });
   }
 
-  // ⭐ Apply filters
   let filteredUpcoming = applyFilters(upcoming);
   let filteredPast = applyFilters(past);
 
-  // ⭐ Apply sorting
+  /* ===========================
+     SORTING
+     =========================== */
+
   function sortList(list) {
     return [...list].sort((a, b) => {
       const da = new Date(a.event_date);
@@ -99,10 +169,12 @@ export default function Events() {
   filteredUpcoming = sortList(filteredUpcoming);
   filteredPast = sortList(filteredPast);
 
-  // ⭐ Group by Year → Month
+  /* ===========================
+     GROUP BY YEAR → MONTH
+     =========================== */
+
   function groupByYearMonth(list) {
     const groups = {};
-
     list.forEach((event) => {
       const d = new Date(event.event_date);
       const year = d.getFullYear();
@@ -113,152 +185,133 @@ export default function Events() {
 
       groups[year][month].push(event);
     });
-
     return groups;
   }
 
   const upcomingGroups = groupByYearMonth(filteredUpcoming);
   const pastGroups = groupByYearMonth(filteredPast);
 
-  // ⭐ Badge colours
-  const typeColors = {
-    race: "#00438A",
-    practice: "#008A2E",
-    meeting: "#8A0043",
-  };
+  /* ===========================
+     CLEAR FILTERS
+     =========================== */
 
-  const badgeStyle = (type) => ({
-    background: typeColors[type] || "#00438A",
-    color: "white",
-    padding: "3px 10px",
-    borderRadius: "12px",
-    fontSize: "0.75rem",
-    fontWeight: 600,
-    textTransform: "capitalize",
-    display: "inline-block",
-  });
-
-  // ⭐ Clear Filters
   function clearFilters() {
     setQuery("");
     setTrackFilter("all");
     setTypeFilter("all");
-    setStatusFilter("all");
     setSortOrder("asc");
   }
+
+  /* ===========================
+     PAGE WRAPPER
+     =========================== */
 
   return (
     <div className="min-h-screen w-full bg-background text-text-base">
 
-      {/* HERO */}
-      <section className="w-full bg-surface">
-        <div className="max-w-6xl mx-auto px-4 pt-10 pb-10">
-
-          <div
-            className="rounded-lg"
-            style={{
-              padding: "3px",
-              background:
-                "linear-gradient(315deg, #2e3192, #00aeef, #2e3192)",
-              boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
-            }}
-          >
-            <div
-              className="rounded-md text-center"
-              style={{
-                background: "#00438A",
-                padding: "28px 16px",
-              }}
-            >
-              <h1
-                className="text-3xl font-semibold tracking-tight"
-                style={{ color: "white" }}
-              >
-                Events
-              </h1>
-            </div>
-          </div>
-
+      {/* ===========================
+          PAGE TITLE
+          =========================== */}
+      <section className="w-full border-b border-surfaceBorder bg-surface">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-2">
+          <CalendarDaysIcon
+            className="h-5 w-5"
+            strokeWidth={2}
+            style={{ color: brand }}
+          />
+          <h1 className="text-xl font-semibold tracking-tight">Events</h1>
         </div>
       </section>
 
-      {/* MAIN CONTENT */}
-      <main className="max-w-6xl mx-auto px-4 pt-10 pb-12 space-y-12">
+      {/* ===========================
+          FILTERS BUTTON
+          =========================== */}
+      <div className="max-w-6xl mx-auto px-4">
+        <Button
+          className="!rounded-md !px-4 !py-2 flex items-center gap-2"
+          style={{ backgroundColor: brand }}
+          onClick={() => setFiltersOpen(!filtersOpen)}
+        >
+          <FunnelIcon className="w-5 h-5 text-white" />
+          <span className="text-white text-sm font-medium">Filters</span>
+          {filtersOpen ? (
+            <ChevronUpIcon className="w-5 h-5 text-white" />
+          ) : (
+            <ChevronDownIcon className="w-5 h-5 text-white" />
+          )}
+        </Button>
+      </div>
 
-        {/* FILTERS */}
-        <section>
-          <h2 className="text-sm font-semibold tracking-[0.18em] uppercase text-text-muted mb-4">
-            Filter Events
-          </h2>
-
+      {/* ===========================
+          FILTER PANEL
+          =========================== */}
+      <div
+        className={`overflow-hidden transition-all duration-300 ${
+          filtersOpen ? "max-h-96" : "max-h-0"
+        }`}
+      >
+        <div className="max-w-6xl mx-auto px-4 py-6 space-y-4">
           <div className="flex gap-3 flex-wrap">
 
-            {/* Search */}
             <input
               type="text"
               placeholder="Search…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full sm:w-64 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full sm:w-64 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800"
             />
 
-            {/* Track Type */}
             <select
               value={trackFilter}
               onChange={(e) => setTrackFilter(e.target.value)}
-              className="w-full sm:w-40 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full sm:w-40 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800"
             >
               <option value="all">All Tracks</option>
               <option value="dirt">Dirt</option>
               <option value="sic">SIC</option>
             </select>
 
-            {/* Event Type */}
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full sm:w-40 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full sm:w-48 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800"
             >
               <option value="all">All Types</option>
-              <option value="race">Race</option>
+              <option value="racing">Racing</option>
               <option value="practice">Practice</option>
+              <option value="club_meet">Club Meet</option>
+              <option value="championship_round">Championship Round</option>
+              <option value="state_titles">State Titles</option>
+              <option value="national_titles">National Titles</option>
             </select>
 
-            {/* Open / Closed */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full sm:w-40 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              <option value="all">All Status</option>
-              <option value="open">Open</option>
-              <option value="closed">Closed</option>
-            </select>
-
-            {/* Sort */}
             <select
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value)}
-              className="w-full sm:w-40 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full sm:w-40 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800"
             >
               <option value="asc">Date ↑</option>
               <option value="desc">Date ↓</option>
             </select>
 
-            {/* Clear Filters */}
-            <button
+            <Button
+              className="!rounded-md !px-4 !py-2 text-sm font-medium bg-gray-200 hover:bg-gray-300"
               onClick={clearFilters}
-              className="px-4 py-1.5 rounded-md text-sm font-medium bg-gray-200 hover:bg-gray-300 transition"
             >
               Clear
-            </button>
+            </Button>
 
           </div>
-        </section>
+        </div>
+      </div>
 
-        {/* UPCOMING EVENTS */}
+      {/* ===========================
+          UPCOMING EVENTS
+          =========================== */}
+      <main className="max-w-6xl mx-auto px-4 pt-10 pb-12 space-y-12">
+
         <section>
-          <h2 className="text-sm font-semibold tracking-[0.18em] uppercase text-text-muted mb-4">
+          <h2 className="text-sm font-semibold tracking-wide uppercase text-text-muted mb-4">
             Upcoming Events
           </h2>
 
@@ -272,64 +325,88 @@ export default function Events() {
             Object.keys(upcomingGroups).map((year) => (
               <div key={year} className="space-y-6 mb-10">
 
-                <h3 className="text-xl font-semibold">{year}</h3>
+                <h3 className="text-lg font-semibold">{year}</h3>
 
                 {Object.keys(upcomingGroups[year]).map((month) => (
                   <div key={month} className="space-y-4">
 
-                    <h4 className="text-lg font-medium text-text-muted">{month}</h4>
+                    <h4 className="text-base font-medium text-text-muted">{month}</h4>
 
-                    {upcomingGroups[year][month].map((event) => (
-                      <Card key={event.id} className="p-0">
-                        <Link
-                          to={`/${clubSlug}/events/${event.id}`}
-                          className="block p-4"
-                        >
-                          <div className="flex gap-4 items-center">
+                    {upcomingGroups[year][month].map((event) => {
+                      const logo = event.logoUrl || event.logourl;
+                      const track = event.track_type || event.track;
+                      const type = (event.event_type || "racing").toLowerCase();
+                      const typeLabel = TYPE_LABELS[type];
 
-                            {/* Logo */}
-                            {event.event_logo && (
-                              <div className="w-20 h-20 bg-white border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
-                                <img
-                                  src={event.event_logo}
-                                  alt="Event Logo"
-                                  className="w-full h-full object-contain"
-                                />
-                              </div>
-                            )}
+                      return (
+<Card
+  key={event.id}
+  className="p-0 rounded-lg bg-white"
+  style={{ border: `2px solid ${brand}` }}
+>
+  <div className="p-4 flex flex-col md:flex-row gap-4 items-start">
 
-                            {/* Text */}
-                            <div className="flex-1 space-y-1">
-                              <div className="text-lg font-semibold leading-snug">
-                                {event.event_name || event.name}
-                              </div>
+    {/* LOGO */}
+    {logo && (
+      <div className="w-24 h-24 bg-white border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+        <img
+          src={logo}
+          alt="Event Logo"
+          className="w-full h-full object-contain"
+        />
+      </div>
+    )}
 
-                              <div className="text-text-muted text-sm">
-                                {formatDate(event.event_date)}
-                              </div>
+    {/* TEXT + METADATA */}
+    <div className="flex-1 space-y-2">
+      <div className="text-lg font-semibold leading-snug">
+        {event.name}
+      </div>
 
-                              <span style={badgeStyle((event.event_type || event.type || "race"))}>
-                                {event.event_type || event.type || "race"}
-                              </span>
-                            </div>
+      <div className="text-sm text-text-muted leading-tight space-y-0.5">
+        <div><strong>Event Date:</strong> {formatDate(event.event_date)}</div>
+        <div><strong>Event Type:</strong> {typeLabel}</div>
+        <div><strong>Track:</strong> {track}</div>
+      </div>
+    </div>
 
-                            {/* Details button */}
-                            <div className="hidden sm:flex flex-shrink-0">
-                              <span
-                                className="px-4 py-2 rounded-lg text-sm"
-                                style={{
-                                  background: "#00438A",
-                                  color: "white",
-                                }}
-                              >
-                                Details
-                              </span>
-                            </div>
+    {/* ACTION BUTTONS */}
+    <div className="flex flex-col gap-2 w-full md:w-auto">
 
-                          </div>
-                        </Link>
-                      </Card>
-                    ))}
+      {/* VIEW EVENT */}
+      <Link
+        to={`/${clubSlug}/app/events/${event.id}`}
+        className="no-underline"
+      >
+        <Button
+          className="!rounded-md !px-3 !py-1.5 !text-sm !font-medium self-start md:self-auto"
+          style={{ backgroundColor: brand }}
+        >
+          View Event
+        </Button>
+      </Link>
+
+      {/* NOMINATE — only if nominations are open */}
+      {isNominationsOpen(event) && (
+        <Link
+          to={`/${clubSlug}/app/nominate?eventId=${event.id}`}
+          className="no-underline"
+        >
+          <Button
+  variant="success"
+  className="!rounded-md !px-3 !py-1.5 !text-sm !font-medium self-start md:self-auto"
+>
+  Nominate
+</Button>
+        </Link>
+      )}
+
+    </div>
+
+  </div>
+</Card>
+                      );
+                    })}
 
                   </div>
                 ))}
@@ -338,71 +415,125 @@ export default function Events() {
             ))}
         </section>
 
-        {/* PAST EVENTS */}
-        <section>
-          <h2 className="text-sm font-semibold tracking-[0.18em] uppercase text-text-muted mb-4">
-            Past Events
-          </h2>
+        {/* ===========================
+            PAST EVENTS
+            =========================== */}
+        <section className="space-y-6">
 
-          {!loading && filteredPast.length === 0 && (
-            <p className="text-text-muted">No past events.</p>
-          )}
+          <Button
+            className="!rounded-md !px-4 !py-2 flex items-center gap-2"
+            style={{ backgroundColor: brand }}
+            onClick={() => setPastOpen(!pastOpen)}
+          >
+            <ArchiveBoxIcon className="w-5 h-5 text-white" />
+            <span className="text-white text-sm font-medium">
+              {pastOpen ? "Hide Past Events" : "View Past Events"}
+            </span>
+            {pastOpen ? (
+              <ChevronUpIcon className="w-5 h-5 text-white" />
+            ) : (
+              <ChevronDownIcon className="w-5 h-5 text-white" />
+            )}
+          </Button>
 
-          {!loading &&
-            Object.keys(pastGroups).map((year) => (
-              <div key={year} className="space-y-6 mb-10">
+          {pastOpen && (
+            <div className="space-y-10 pt-4">
 
-                <h3 className="text-xl font-semibold">{year}</h3>
+              {!loading && filteredPast.length === 0 && (
+                <p className="text-text-muted">No past events.</p>
+              )}
 
-                {Object.keys(pastGroups[year]).map((month) => (
-                  <div key={month} className="space-y-4">
+              {!loading &&
+                Object.keys(pastGroups).map((year) => (
+                  <div key={year} className="space-y-6">
 
-                    <h4 className="text-lg font-medium text-text-muted">{month}</h4>
+                    <h3 className="text-lg font-semibold">{year}</h3>
 
-                    {pastGroups[year][month].map((event) => (
-                      <Card key={event.id} className="p-0 opacity-80">
-                        <Link
-                          to={`/${clubSlug}/events/${event.id}`}
-                          className="block p-4"
-                        >
-                          <div className="flex gap-4 items-center">
+                    {Object.keys(pastGroups[year]).map((month) => (
+                      <div key={month} className="space-y-4">
 
-                            {/* Logo */}
-                            {event.event_logo && (
-                              <div className="w-20 h-20 bg-white border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
-                                <img
-                                  src={event.event_event_logo}
-                                  alt="Event Logo"
-                                  className="w-full h-full object-contain"
-                                />
+                        <h4 className="text-base font-medium text-text-muted">{month}</h4>
+
+                        {pastGroups[year][month].map((event) => {
+                          const logo = event.logoUrl || event.logourl;
+                          const track = event.track_type || event.track;
+                          const type = (event.event_type || "racing").toLowerCase();
+                          const typeLabel = TYPE_LABELS[type];
+
+                          return (
+                            <Card
+                              key={event.id}
+                              className="p-0 rounded-lg bg-white opacity-80"
+                              style={{ border: `2px solid ${brand}` }}
+                            >
+                              <div className="p-4 flex flex-col md:flex-row gap-4 items-start">
+
+                                {/* LOGO */}
+                                {logo && (
+                                  <div className="w-20 h-20 bg-white border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                                    <img
+                                      src={logo}
+                                      alt="Event Logo"
+                                      className="w-full h-full object-contain"
+                                    />
+                                  </div>
+                                )}
+
+                                {/* TEXT + METADATA */}
+                                <div className="flex-1 space-y-2">
+                                  <div className="text-lg font-semibold leading-snug">
+                                    {event.name}
+                                  </div>
+
+                                  <div className="text-sm text-text-muted leading-tight space-y-0.5">
+                                    <div><strong>Event Date:</strong> {formatDate(event.event_date)}</div>
+                                    <div><strong>Event Type:</strong> {typeLabel}</div>
+                                    <div><strong>Track:</strong> {track}</div>
+                                  </div>
+                                </div>
+
+                                {/* ACTION BUTTONS */}
+                                <div className="flex flex-col gap-2 w-full md:w-auto">
+
+                                  <Link
+                                    to={`/${clubSlug}/app/events/${event.id}`}
+                                    className="no-underline"
+                                  >
+                                    <Button
+                                      className="!rounded-md !px-3 !py-1.5 !text-sm !font-medium self-start md:self-auto"
+                                      style={{ backgroundColor: brand }}
+                                    >
+                                      View Event
+                                    </Button>
+                                  </Link>
+
+                                  <Link
+                                    to={`/${clubSlug}/app/events/${event.id}/results`}
+                                    className="no-underline"
+                                  >
+                                    <Button
+                                      className="!rounded-md !px-3 !py-1.5 !text-sm !font-medium self-start md:self-auto"
+                                      style={{ backgroundColor: brand }}
+                                    >
+                                      View Results
+                                    </Button>
+                                  </Link>
+
+                                </div>
+
                               </div>
-                            )}
+                            </Card>
+                          );
+                        })}
 
-                            {/* Text */}
-                            <div className="flex-1 space-y-1">
-                              <div className="text-lg font-semibold leading-snug">
-                                {event.event_name || event.name}
-                              </div>
-
-                              <div className="text-text-muted text-sm">
-                                {formatDate(event.event_date)}
-                              </div>
-
-                              <span style={badgeStyle((event.event_type || event.type || "race"))}>
-                                {event.event_type || event.type || "race"}
-                              </span>
-                            </div>
-
-                          </div>
-                        </Link>
-                      </Card>
+                      </div>
                     ))}
 
                   </div>
                 ))}
+            </div>
+          )}
 
-              </div>
-            ))}
         </section>
 
       </main>

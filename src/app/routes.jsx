@@ -17,14 +17,16 @@ import Signup from "@app/pages/public/Signup";
 import CheckEmail from "@app/pages/public/CheckEmail";
 import ForgotPassword from "@app/pages/public/ForgotPassword";
 import ResetPassword from "@app/pages/public/ResetPassword";
-import ForgotEmail from "@app/pages/public/ForgotEmail"; // ⭐ ADDED IMPORT
+import ForgotEmail from "@app/pages/public/ForgotEmail";
 
 // APP PAGES
 import Home from "@app/pages/home/Home";
 import Events from "@app/pages/events/Events";
 import EventDetails from "@app/pages/events/EventDetails";
-import Calendar from "@app/pages/events/Calendar";
-import CalendarItemDetails from "@app/pages/events/CalendarItemDetails";
+
+// ⭐ NEW CALENDAR LOCATION
+import Calendar from "@app/pages/events/calendar/Calendar";
+import CalendarItemDetails from "@app/pages/events/calendar/CalendarItemDetails";
 
 import UserProfile from "@app/pages/profile/UserProfile";
 import DriverManager from "@app/pages/profile/DriverManager";
@@ -92,10 +94,7 @@ export default function RoutesFile() {
           <Route path="check-email/*" element={<CheckEmail />} />
           <Route path="forgot-password" element={<ForgotPassword />} />
           <Route path="reset-password" element={<ResetPassword />} />
-
-          {/* ⭐ FIX: Forgot Email route added */}
           <Route path="forgot-email" element={<ForgotEmail />} />
-
           <Route path="*" element={<Navigate to="login" replace />} />
         </Route>
 
@@ -110,23 +109,28 @@ export default function RoutesFile() {
         >
           <Route index element={<Home />} />
 
+          {/* MEMBERSHIP */}
           <Route path="membership" element={<JoinMembership />} />
           <Route path="membership/join" element={<JoinMembership />} />
           <Route path="membership/renew" element={<RenewMembership />} />
           <Route path="membership/upgrade" element={<UpgradeMembership />} />
 
+          {/* ⭐ NEW CALENDAR ROUTES */}
           <Route path="calendar" element={<Calendar />} />
           <Route path="calendar/:id" element={<CalendarItemDetails />} />
 
+          {/* EVENTS */}
           <Route path="events" element={<Events />} />
           <Route path="events/:id" element={<EventDetails />} />
 
+          {/* PROFILE */}
           <Route path="profile" element={<UserProfile />} />
           <Route path="profile/drivers" element={<DriverManager />} />
           <Route path="profile/drivers/add" element={<AddDriver />} />
           <Route path="profile/drivers/:id/edit" element={<EditDriver />} />
           <Route path="profile/drivers/:id" element={<DriverProfile />} />
 
+          {/* LOGOUT */}
           <Route path="logout" element={<Logout />} />
 
           <Route path="*" element={<Navigate to="" replace />} />

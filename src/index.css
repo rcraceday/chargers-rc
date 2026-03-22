@@ -218,7 +218,6 @@
   border-bottom: 1px solid rgba(0,0,0,0.06);
 }
 
-
 /* ===========================
    CLUB HERO (PUBLIC PAGES)
    =========================== */
@@ -247,6 +246,20 @@
 html, body {
   font-family: var(--site-font), sans-serif;
 }
+
+/* ===========================
+   GLOBAL LINK RESET
+   =========================== */
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+a:hover {
+  text-decoration: none;
+}
+
 /* public column authoritative layout */
 .public-column {
   width: 320px;
@@ -263,6 +276,7 @@ html, body {
   box-sizing: border-box;
   width: 100%;
 }
+
 /* DESKTOP DROPDOWN */
 .desktop-dropdown {
   position: absolute;
