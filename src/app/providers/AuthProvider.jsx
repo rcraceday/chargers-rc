@@ -21,7 +21,10 @@ export default function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
-  const [hydrated, setHydrated] = useState(false);   // ⭐ NEW: hydration guard
+
+  // ⭐ The critical hydration flag
+  const [hydrated, setHydrated] = useState(false);
+
   const [signupEmail, setSignupEmail] = useState("");
 
   async function loadProfile(userId) {
@@ -92,18 +95,23 @@ export default function AuthProvider({ children }) {
       console.log(">>> loadInitial: calling supabase.auth.getSession()");
       try {
         const { data, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error(">>> getSession error", error);
-        }
+        if (error) console.error(">>> getSession error", error);
+
         console.log(">>> getSession result", { session: data?.session ?? null });
+
         if (!mounted) return;
 
         await handleSession(data?.session ?? null);
 
-        if (mounted) setLoadingUser(false);
+        // ⭐ Hydration completes here
+        setHydrated(true);
+        setLoadingUser(false);
       } catch (err) {
         console.error(">>> loadInitial exception", err);
-        if (mounted) setLoadingUser(false);
+        if (mounted) {
+          setHydrated(true);
+          setLoadingUser(false);
+        }
       }
     }
 
@@ -114,28 +122,21 @@ export default function AuthProvider({ children }) {
         console.log(">>> onAuthStateChange", { event, newSession });
         if (!mounted) return;
 
-        if (event === "INITIAL_SESSION") {
-          console.log(">>> INITIAL_SESSION hydration complete");
-          setHydrated(true);   // ⭐ hydration finished
-        }
-
         if (event === "SIGNED_OUT") {
           setSession(null);
           setProfile(null);
+          setHydrated(true);
           setLoadingUser(false);
           return;
         }
 
         await handleSession(newSession);
+
+        // ⭐ Hydration also completes on ANY auth event
+        setHydrated(true);
         setLoadingUser(false);
       }
     );
-
-    // ⭐ If Supabase already has a session, hydrate immediately
-    supabase.auth.getSession().then(() => {
-      console.log(">>> manual hydration complete");
-      setHydrated(true);
-    });
 
     return () => {
       mounted = false;
