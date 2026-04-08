@@ -347,7 +347,7 @@ export default function Signup() {
           <Input label="Email" value={email} disabled />
 
           <Input
-            label="Password"
+            label="Create Password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -399,19 +399,23 @@ export default function Signup() {
     const firstName = parts[0];
     const lastName = parts.length > 1 ? parts.slice(1).join(" ") : firstName;
 
-    const { data: signUpData, error } = await supabase.auth.signUp({
-      email: cleanEmail,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: name.trim(),
-          first_name: firstName,
-          last_name: lastName,
-          club_id: clubId,
-        },
-      },
-    });
+const { data: signUpData, error } = await supabase.auth.signUp({
+  email: cleanEmail,
+  password,
+  options: {
+    emailRedirectTo: redirectUrl,
+    data: {
+      full_name: name.trim(),
+      first_name: firstName,
+      last_name: lastName,
+      club_id: clubId,
+
+      // ⭐ REQUIRED FOR EMAIL TEMPLATE ⭐
+      club_name: club.name,
+      club_logo_url: club.logo_url,
+    },
+  },
+});
 
     if (error) {
       setLoading(false);
