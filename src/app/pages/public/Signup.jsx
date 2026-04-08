@@ -251,20 +251,25 @@ export default function Signup() {
 
     const redirectUrl = `${window.location.origin}/${clubSlug}/public/login/`;
 
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: name.trim(),
-          first_name: firstName,
-          last_name: lastName,
-          club_id: clubId,
-          ...(membership?.id ? { membership_id: membership.id } : {}),
-        },
-      },
-    });
+const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+  email,
+  password,
+  options: {
+    emailRedirectTo: redirectUrl,
+    data: {
+      full_name: name.trim(),
+      first_name: firstName,
+      last_name: lastName,
+      club_id: clubId,
+
+      // ⭐ REQUIRED FOR EMAIL TEMPLATE ⭐
+      club_name: club?.name,
+      club_logo_url: club?.logo_url,
+
+      ...(membership?.id ? { membership_id: membership.id } : {}),
+    },
+  },
+});
 
     if (signUpError) {
       setLoading(false);
@@ -410,7 +415,7 @@ const { data: signUpData, error } = await supabase.auth.signUp({
       last_name: lastName,
       club_id: clubId,
 
-      // ⭐ REQUIRED FOR EMAIL TEMPLATE ⭐
+      // REQUIRED for email template
       club_name: club.name,
       club_logo_url: club.logo_url,
     },
