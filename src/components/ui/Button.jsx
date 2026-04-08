@@ -4,6 +4,7 @@ import { useOutletContext } from "react-router-dom";
 export default function Button({
   children,
   variant = "primary",
+  size = "md",          // ⭐ NEW: size support
   className = "",
   disabled = false,
   ...props
@@ -28,6 +29,7 @@ export default function Button({
 
   const brandHover = darken(brand);
 
+  // ⭐ Variant styles (unchanged)
   const variants = {
     primary: {
       bg: brand,
@@ -51,6 +53,28 @@ export default function Button({
 
   const style = variants[variant] || variants.primary;
 
+  // ⭐ NEW: Size styles
+  const sizeStyles = {
+    sm: {
+      padding: "6px 10px",
+      fontSize: "14px",
+      borderRadius: "4px",
+    },
+    md: {
+      padding: "10px 14px",
+      fontSize: "15px",
+      borderRadius: "6px",
+    },
+    lg: {
+      padding: "14px 18px",   // ⭐ Larger buttons
+      fontSize: "16px",
+      fontWeight: 600,
+      borderRadius: "6px",    // ⭐ Less rounded, matches admin UI
+    },
+  };
+
+  const sizeStyle = sizeStyles[size] || sizeStyles.md;
+
   return (
     <button
       {...props}
@@ -59,7 +83,6 @@ export default function Button({
         inline-flex
         items-center
         justify-center
-        rounded-md
         transition-colors
         ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
         ${className}
@@ -68,6 +91,10 @@ export default function Button({
         backgroundColor: style.bg,
         color: style.text,
         border: `1px solid ${style.border}`,
+        padding: sizeStyle.padding,
+        fontSize: sizeStyle.fontSize,
+        fontWeight: sizeStyle.fontWeight || "500",
+        borderRadius: sizeStyle.borderRadius,
         ...(props.style || {}),
       }}
       onMouseEnter={(e) => {

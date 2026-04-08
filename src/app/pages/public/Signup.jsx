@@ -10,16 +10,25 @@ export default function Signup() {
   const { clubSlug } = useParams();
   const navigate = useNavigate();
 
+  const clubId = club?.id;
+
+  const [step, setStep] = useState("memberQuestion");
+
+  const [membershipEmail, setMembershipEmail] = useState("");
+  const [membership, setMembership] = useState(null);
+
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(""); 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (!club) return <div style={{ padding: 24, textAlign: "center" }}>Loading…</div>;
+  if (!club || !clubId) {
+    return <div style={{ padding: 24, textAlign: "center" }}>Loading…</div>;
+  }
 
-  // ⭐ KEEP the Chargers logo (club logo)
   const logoSrc =
     club?.logo_url ||
     club?.logo ||
@@ -31,66 +40,396 @@ export default function Signup() {
   const isValidEmail = (value) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
-  async function handleSignup(e) {
+  // ------------------------------------------------------------
+  // STEP 1 — Member Question
+  // ------------------------------------------------------------
+  function renderMemberQuestion() {
+    return (
+      <div
+        style={{
+          padding: "32px 24px 0 24px",
+          width: "100%",
+          maxWidth: "360px",
+          margin: "0 auto",
+          minHeight: "100vh",
+          boxSizing: "border-box",
+        }}
+      >
+        {logoSrc && (
+          <img
+            src={logoSrc}
+            alt={club?.name}
+            style={{
+              maxWidth: "160px",
+              width: "100%",
+              height: "auto",
+              marginBottom: "20px",
+              display: "block",
+              marginLeft: "auto",
+              marginRight: "auto",
+            }}
+          />
+        )}
+
+        <h1
+          style={{
+            fontSize: "24px",
+            fontWeight: "bold",
+            marginBottom: "24px",
+            textAlign: "center",
+          }}
+        >
+          Create Account
+        </h1>
+
+        <p style={{ textAlign: "center", marginBottom: "24px" }}>
+          Are you currently a financial member of {club?.name}?
+        </p>
+
+        <Button
+          variant="primary"
+          size="lg"
+          onClick={() => setStep("memberLookup")}
+          style={{ width: "100%", marginBottom: "12px" }}
+        >
+          Yes, I am a current member
+        </Button>
+
+        <Button
+          variant="secondary"
+          size="lg"
+          onClick={() => setStep("nonMemberSignup")}
+          style={{ width: "100%" }}
+        >
+          No, I am not a member
+        </Button>
+
+        <div style={{ marginTop: "24px", textAlign: "center" }}>
+          <Button size="lg" onClick={() => navigate("/")}>← Back to Clubs</Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ------------------------------------------------------------
+  // STEP 2 — Member Lookup
+  // ------------------------------------------------------------
+  async function handleLookupMembership(e) {
+    e.preventDefault();
+    setErrorMsg("");
+
+    console.log("DEBUG LOOKUP:", {
+      membershipEmailInput: membershipEmail,
+      membershipEmailTrimmed: membershipEmail.trim(),
+      clubId,
+    });
+
+    if (!isValidEmail(membershipEmail.trim())) {
+      return setErrorMsg("Please enter a valid email address.");
+    }
+
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from("household_memberships")
+      .select("*")
+      .ilike("email", membershipEmail.trim())
+      .eq("club_id", clubId)
+      .maybeSingle();
+
+    console.log("DEBUG QUERY RESULT:", { data, error });
+
+    setLoading(false);
+
+    if (error) {
+      return setErrorMsg("Something went wrong. Please try again.");
+    }
+
+    if (!data) {
+      return setErrorMsg(
+        "We could not find a membership with that email for this club."
+      );
+    }
+
+    setMembership(data);
+    setName(
+      `${data.primary_first_name || ""} ${data.primary_last_name || ""}`.trim()
+    );
+    setEmail(membershipEmail.trim().toLowerCase());
+    setStep("memberCreatePassword");
+  }
+
+  function renderMemberLookup() {
+    return (
+      <div
+        style={{
+          padding: "32px 24px 0 24px",
+          width: "100%",
+          maxWidth: "360px",
+          margin: "0 auto",
+          minHeight: "100vh",
+          boxSizing: "border-box",
+        }}
+      >
+        {logoSrc && (
+          <img
+            src={logoSrc}
+            alt={club?.name}
+            style={{
+              maxWidth: "160px",
+              width: "100%",
+              height: "auto",
+              marginBottom: "20px",
+              display: "block",
+              marginLeft: "auto",
+              marginRight: "auto",
+            }}
+          />
+        )}
+
+        <h1
+          style={{
+            fontSize: "24px",
+            fontWeight: "bold",
+            marginBottom: "24px",
+            textAlign: "center",
+          }}
+        >
+          Find Your Membership
+        </h1>
+
+        <form
+          onSubmit={handleLookupMembership}
+          style={{
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+          }}
+        >
+          <Input
+            label="Membership Email"
+            type="email"
+            value={membershipEmail}
+            onChange={(e) => setMembershipEmail(e.target.value)}
+          />
+
+          {errorMsg && (
+            <p style={{ color: "#dc2626", fontSize: "14px", textAlign: "center" }}>
+              {errorMsg}
+            </p>
+          )}
+
+          <Button type="submit" variant="primary" size="lg" disabled={loading}>
+            {loading ? "Searching…" : "Find Membership"}
+          </Button>
+
+          <Button variant="secondary" size="lg" onClick={() => setStep("memberQuestion")}>
+            Back
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
+  // ------------------------------------------------------------
+  // STEP 3 — Member Create Password
+  // ------------------------------------------------------------
+  async function handleMemberCreatePassword(e) {
+    e.preventDefault();
+    setErrorMsg("");
+
+    if (!name.trim()) return setErrorMsg("Please enter your full name.");
+    if (password.length < 6) return setErrorMsg("Password must be at least 6 characters.");
+    if (password !== confirmPassword) return setErrorMsg("Passwords do not match.");
+
+    setLoading(true);
+
+    const parts = name.trim().split(/\s+/);
+    const firstName = parts[0];
+    const lastName = parts.length > 1 ? parts.slice(1).join(" ") : firstName;
+
+    const redirectUrl = `${window.location.origin}/${clubSlug}/public/login/`;
+
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          full_name: name.trim(),
+          first_name: firstName,
+          last_name: lastName,
+          club_id: clubId,
+          ...(membership?.id ? { membership_id: membership.id } : {}),
+        },
+      },
+    });
+
+    if (signUpError) {
+      setLoading(false);
+      return setErrorMsg(signUpError.message);
+    }
+
+    const user = signUpData.user;
+
+    if (user) {
+      await supabase
+        .from("household_memberships")
+        .update({
+          user_id: user.id,
+          primary_first_name: firstName,
+          primary_last_name: lastName,
+          status: "active",
+        })
+        .eq("id", membership.id);
+    }
+
+    await supabase.auth.signOut();
+
+    navigate(
+      `/${clubSlug}/public/check-email?email=${encodeURIComponent(email)}`
+    );
+
+    setLoading(false);
+  }
+
+  function renderMemberCreatePassword() {
+    return (
+      <div
+        style={{
+          padding: "32px 24px 0 24px",
+          width: "100%",
+          maxWidth: "360px",
+          margin: "0 auto",
+          minHeight: "100vh",
+          boxSizing: "border-box",
+        }}
+      >
+        {logoSrc && (
+          <img
+            src={logoSrc}
+            alt={club?.name}
+            style={{
+              maxWidth: "160px",
+              width: "100%",
+              height: "auto",
+              marginBottom: "20px",
+              display: "block",
+              marginLeft: "auto",
+              marginRight: "auto",
+            }}
+          />
+        )}
+
+        <h1
+          style={{
+            fontSize: "24px",
+            fontWeight: "bold",
+            marginBottom: "24px",
+            textAlign: "center",
+          }}
+        >
+          Confirm Your Details
+        </h1>
+
+        <form
+          onSubmit={handleMemberCreatePassword}
+          style={{
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+          }}
+        >
+          <Input label="Full Name" value={name} onChange={(e) => setName(e.target.value)} />
+
+          <Input label="Email" value={email} disabled />
+
+          <Input
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <Input
+            label="Confirm Password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+
+          {errorMsg && (
+            <p style={{ color: "#dc2626", fontSize: "14px", textAlign: "center" }}>
+              {errorMsg}
+            </p>
+          )}
+
+          <Button type="submit" variant="primary" size="lg" disabled={loading}>
+            {loading ? "Creating account…" : "Create Account"}
+          </Button>
+
+          <Button variant="secondary" size="lg" onClick={() => setStep("memberLookup")}>
+            Back
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
+  // ------------------------------------------------------------
+  // STEP 4 — Non-member Signup
+  // ------------------------------------------------------------
+  async function handleNonMemberSignup(e) {
     e.preventDefault();
     setErrorMsg("");
 
     if (!name.trim()) return setErrorMsg("Please enter your full name.");
     if (!isValidEmail(email.trim())) return setErrorMsg("Please enter a valid email address.");
-    if (password.length < 6) return setErrorMsg("Password must be at least 6 characters long.");
+    if (password.length < 6) return setErrorMsg("Password must be at least 6 characters.");
     if (password !== confirmPassword) return setErrorMsg("Passwords do not match.");
 
     setLoading(true);
 
     const cleanEmail = email.trim().toLowerCase();
-
-    const { data: existingUser, error: existingError } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("email", cleanEmail)
-      .maybeSingle();
-
-    if (existingError) {
-      setErrorMsg("Something went wrong. Please try again.");
-      setLoading(false);
-      return;
-    }
-
-    if (existingUser) {
-      setErrorMsg("This email is already registered. Please log in instead.");
-      setLoading(false);
-      return;
-    }
-
     const redirectUrl = `${window.location.origin}/${clubSlug}/public/login/`;
 
     const parts = name.trim().split(/\s+/);
     const firstName = parts[0];
     const lastName = parts.length > 1 ? parts.slice(1).join(" ") : firstName;
 
-    const payload = {
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email: cleanEmail,
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        shouldCreateUser: true,
         data: {
           full_name: name.trim(),
           first_name: firstName,
           last_name: lastName,
-          email: cleanEmail,
-          club_name: club?.name || "",
-          club_logo_url: club?.logo_url || club?.logo || "",
+          club_id: clubId,
         },
       },
-    };
-
-    const { error } = await supabase.auth.signUp(payload);
+    });
 
     if (error) {
-      setErrorMsg(error.message);
       setLoading(false);
-      return;
+      return setErrorMsg(error.message);
+    }
+
+    const user = signUpData.user;
+
+    if (user) {
+      await supabase.from("household_memberships").insert({
+        user_id: user.id,
+        email: cleanEmail,
+        primary_first_name: firstName,
+        primary_last_name: lastName,
+        status: "active",
+        membership_type: "non_member",
+        club_id: clubId,
+      });
     }
 
     await supabase.auth.signOut();
@@ -102,127 +441,107 @@ export default function Signup() {
     setLoading(false);
   }
 
-  return (
-    <div
-      style={{
-        padding: "32px 24px 0 24px",
-        width: "100%",
-        maxWidth: "360px",
-        margin: "0 auto",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        boxSizing: "border-box",
-        minHeight: "100vh",
-        justifyContent: "flex-start",
-      }}
-    >
-      {/* ⭐ Chargers logo stays */}
-      {logoSrc && (
-        <img
-          src={logoSrc}
-          alt={club?.name}
-          style={{
-            maxWidth: "160px",
-            width: "100%",
-            height: "auto",
-            display: "block",
-            marginBottom: "20px",
-          }}
-        />
-      )}
-
-      <h1
-        style={{
-          fontSize: "24px",
-          fontWeight: "bold",
-          marginBottom: "24px",
-          textAlign: "center",
-        }}
-      >
-        Create Account
-      </h1>
-
-      <form
-        onSubmit={handleSignup}
-        style={{
-          width: "100%",
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-        }}
-      >
-        <Input
-          label="Full Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-
-        <Input
-          label="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <Input
-          label="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        <Input
-          label="Confirm Password"
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-        />
-
-        {errorMsg && (
-          <p
-            style={{
-              color: "#dc2626",
-              fontSize: "14px",
-              textAlign: "center",
-              wordBreak: "break-word",
-            }}
-          >
-            {errorMsg}
-          </p>
-        )}
-
-        <Button type="submit" variant="primary" disabled={loading}>
-          {loading ? "Creating account…" : "Sign Up"}
-        </Button>
-      </form>
-
-      <p style={{ textAlign: "center", marginTop: "24px", color: "#666" }}>
-        Already have an account?{" "}
-        <Link
-          to={`/${clubSlug}/public/login`}
-          style={{ color: "#2563eb", textDecoration: "underline" }}
-        >
-          Log in
-        </Link>
-      </p>
-
-      {/* ⭐ Back to Clubs button */}
+  function renderNonMemberSignup() {
+    return (
       <div
         style={{
-          marginTop: "16px",
+          padding: "32px 24px 0 24px",
           width: "100%",
-          display: "flex",
-          justifyContent: "center",
+          maxWidth: "360px",
+          margin: "0 auto",
+          minHeight: "100vh",
+          boxSizing: "border-box",
         }}
       >
-        <Button
-          onClick={() => navigate("/")}
-          className="w-full py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700"
+        {logoSrc && (
+          <img
+            src={logoSrc}
+            alt={club?.name}
+            style={{
+              maxWidth: "160px",
+              width: "100%",
+              height: "auto",
+              marginBottom: "20px",
+              display: "block",
+              marginLeft: "auto",
+              marginRight: "auto",
+            }}
+          />
+        )}
+
+        <h1
+          style={{
+            fontSize: "24px",
+            fontWeight: "bold",
+            marginBottom: "24px",
+            textAlign: "center",
+          }}
         >
-          ← Back to Clubs
-        </Button>
+          Create Account
+        </h1>
+
+        <form
+          onSubmit={handleNonMemberSignup}
+          style={{
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+          }}
+        >
+          <Input label="Full Name" value={name} onChange={(e) => setName(e.target.value)} />
+
+          <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+
+          <Input
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <Input
+            label="Confirm Password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+
+          {errorMsg && (
+            <p style={{ color: "#dc2626", fontSize: "14px", textAlign: "center" }}>
+              {errorMsg}
+            </p>
+          )}
+
+          <Button type="submit" variant="primary" size="lg" disabled={loading}>
+            {loading ? "Creating account…" : "Sign Up"}
+          </Button>
+
+          <p style={{ textAlign: "center", marginTop: "24px", color: "#666" }}>
+            Already have an account?{" "}
+            <Link
+              to={`/${clubSlug}/public/login`}
+              style={{ color: "#2563eb", textDecoration: "underline" }}
+            >
+              Log in
+            </Link>
+          </p>
+
+          <div style={{ marginTop: "16px", textAlign: "center" }}>
+            <Button size="lg" onClick={() => navigate("/")}>← Back to Clubs</Button>
+          </div>
+        </form>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // ------------------------------------------------------------
+  // RENDER
+  // ------------------------------------------------------------
+  if (step === "memberQuestion") return renderMemberQuestion();
+  if (step === "memberLookup") return renderMemberLookup();
+  if (step === "memberCreatePassword") return renderMemberCreatePassword();
+  if (step === "nonMemberSignup") return renderNonMemberSignup();
+
+  return null;
 }

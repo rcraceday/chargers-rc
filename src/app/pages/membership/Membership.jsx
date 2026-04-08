@@ -4,14 +4,28 @@ import { IdentificationIcon } from "@heroicons/react/24/solid";
 import { useOutletContext } from "react-router-dom";
 import { useMembership } from "@/app/providers/MembershipProvider";
 
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+
 export default function Membership() {
   const { club } = useOutletContext();
   const { membership, loadingMembership } = useMembership();
 
   if (!club) {
     return (
-      <div className="min-h-screen w-full bg-background text-text-base flex items-center justify-center">
-        <p className="text-text-muted text-sm">Loading club…</p>
+      <div
+        style={{
+          minHeight: "100vh",
+          width: "100%",
+          background: "var(--background)",
+          color: "var(--text-muted)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "14px",
+        }}
+      >
+        Loading club…
       </div>
     );
   }
@@ -20,7 +34,7 @@ export default function Membership() {
   const clubSlug = club.slug;
 
   // ------------------------------------------------------------
-  // MEMBERSHIP LOGIC
+  // MEMBERSHIP LOGIC (UNCHANGED)
   // ------------------------------------------------------------
   const now = new Date();
   const endDate = membership?.end_date ? new Date(membership.end_date) : null;
@@ -42,54 +56,109 @@ export default function Membership() {
     : null;
 
   return (
-    <div className="min-h-screen w-full bg-background text-text-base">
+    <div
+      style={{
+        minHeight: "100vh",
+        width: "100%",
+        background: "var(--background)",
+        color: "var(--text-base)",
+      }}
+    >
+      {/* PAGE HEADER */}
+      <section
+        style={{
+          width: "100%",
+          borderBottom: "1px solid var(--surface-border)",
+          background: "var(--surface)",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "720px",
+            margin: "0 auto",
+            padding: "16px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <IdentificationIcon
+            style={{
+              width: "20px",
+              height: "20px",
+              color: brand,
+            }}
+          />
 
-      {/* PAGE HEADER — EXACT MATCH TO EDIT DRIVER */}
-      <section className="w-full border-b border-surfaceBorder bg-surface">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-2">
-          <IdentificationIcon className="h-5 w-5" style={{ color: brand }} />
-          <h1 className="text-xl font-semibold tracking-tight">Membership</h1>
+          <h1
+            style={{
+              fontSize: "20px",
+              fontWeight: 600,
+              letterSpacing: "-0.3px",
+            }}
+          >
+            Membership
+          </h1>
         </div>
       </section>
 
-      {/* MAIN CONTENT */}
-      <main className="max-w-3xl mx-auto px-4 py-10">
-
-        {/* CARD — BLUE BORDER + SHADOW + ROUNDED */}
-        <div
-          className="rounded-xl shadow-sm overflow-hidden"
+      {/* MAIN */}
+      <main
+        style={{
+          maxWidth: "720px",
+          margin: "0 auto",
+          padding: "40px 16px",
+        }}
+      >
+        <Card
+          noPadding
           style={{
             border: `2px solid ${brand}`,
             background: "white",
+            overflow: "hidden",   // ⭐ FIX — header now clips to rounded corners
           }}
         >
-
-          {/* CARD HEADER BAR (BLUE) */}
+          {/* CARD HEADER BAR */}
           <div
-            className="px-5 py-3"
             style={{
               background: brand,
               color: "white",
+              padding: "16px 20px",
             }}
           >
-            <h2 className="text-base font-semibold">Membership Details</h2>
+            <h2
+              style={{
+                fontSize: "16px",
+                fontWeight: 600,
+              }}
+            >
+              Membership Details
+            </h2>
           </div>
 
           {/* CARD BODY */}
-          <div className="p-5 space-y-8">
-
+          <div
+            style={{
+              padding: "20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "32px",
+            }}
+          >
             {/* STATUS */}
-            <section className="space-y-2">
+            <section style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {loadingMembership && (
-                <p className="text-text-muted text-sm">Loading membership…</p>
+                <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>
+                  Loading membership…
+                </p>
               )}
 
               {!loadingMembership && !isMember && (
                 <>
-                  <p className="font-medium text-text-base">
+                  <p style={{ fontWeight: 600 }}>
                     You’re not currently a member.
                   </p>
-                  <p className="text-sm text-text-muted">
+                  <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>
                     Support the club and unlock full access to events, nominations, and member benefits.
                   </p>
                 </>
@@ -97,10 +166,10 @@ export default function Membership() {
 
               {!loadingMembership && isMember && isActive && (
                 <>
-                  <p className="font-medium text-emerald-700">
+                  <p style={{ fontWeight: 600, color: "#047857" }}>
                     You’re an active member — thank you for supporting the club.
                   </p>
-                  <p className="text-sm text-text-muted">
+                  <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>
                     <strong>Membership type:</strong> {prettyType} •{" "}
                     <strong>Valid until:</strong>{" "}
                     {endDate ? endDate.toLocaleDateString() : "No expiry"}
@@ -110,10 +179,10 @@ export default function Membership() {
 
               {!loadingMembership && isMember && isExpired && (
                 <>
-                  <p className="font-medium text-amber-700">
+                  <p style={{ fontWeight: 600, color: "#B45309" }}>
                     Your membership has expired.
                   </p>
-                  <p className="text-sm text-text-muted">
+                  <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>
                     <strong>Last membership type:</strong> {prettyType} •{" "}
                     <strong>Expired on:</strong>{" "}
                     {endDate?.toLocaleDateString()}
@@ -124,12 +193,28 @@ export default function Membership() {
 
             {/* BENEFITS */}
             {(!isMember || isExpired) && (
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold tracking-wide text-text-muted uppercase">
+              <section style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <h3
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    color: "var(--text-muted)",
+                  }}
+                >
                   Member benefits
                 </h3>
 
-                <ul className="list-disc ml-5 text-sm text-text-muted space-y-1">
+                <ul
+                  style={{
+                    paddingLeft: "20px",
+                    fontSize: "14px",
+                    color: "var(--text-muted)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "4px",
+                  }}
+                >
                   <li>50% off race fees</li>
                   <li>Insurance coverage</li>
                   <li>Junior members race free</li>
@@ -141,27 +226,42 @@ export default function Membership() {
             )}
 
             {/* PRICING */}
-            <section className="space-y-2">
-              <h3 className="text-sm font-semibold tracking-wide text-text-muted uppercase">
+            <section style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <h3
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  color: "var(--text-muted)",
+                }}
+              >
                 Membership options
               </h3>
 
-              <div className="text-sm text-text-muted space-y-4">
+              <div
+                style={{
+                  fontSize: "14px",
+                  color: "var(--text-muted)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                }}
+              >
                 <div>
-                  <h4 className="font-semibold text-text-base mb-1">
+                  <h4 style={{ fontWeight: 600, marginBottom: "4px", color: "var(--text-base)" }}>
                     Full Year (Jan – Dec)
                   </h4>
                   <p>Single: $80 • Family: $110 • Junior: $40</p>
                 </div>
 
                 <div>
-                  <h4 className="font-semibold text-text-base mb-1">
+                  <h4 style={{ fontWeight: 600, marginBottom: "4px", color: "var(--text-base)" }}>
                     Half Year (Jan – Jun / Jul – Dec)
                   </h4>
                   <p>Single: $50 • Family: $70</p>
                 </div>
 
-                <div className="text-xs space-y-1">
+                <div style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
                   <p>* A family includes 1–2 parents/guardians and their children under 16.</p>
                   <p>** Junior members must be aged 16 or under at the time of application.</p>
                 </div>
@@ -169,14 +269,20 @@ export default function Membership() {
             </section>
 
             {/* CTAS */}
-            <section className="space-y-3">
-
+            <section style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               {/* Non-member */}
               {!loadingMembership && !isMember && (
                 <Link
                   to={`/${clubSlug}/membership/join`}
-                  className="block text-center py-3 rounded-md font-semibold"
-                  style={{ background: brand, color: "white" }}
+                  style={{
+                    textAlign: "center",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    fontWeight: 600,
+                    background: brand,
+                    color: "white",
+                    textDecoration: "none",
+                  }}
                 >
                   Join Membership
                 </Link>
@@ -188,7 +294,15 @@ export default function Membership() {
                   {membership.membership_type !== "family" && (
                     <Link
                       to={`/${clubSlug}/membership/upgrade`}
-                      className="block text-center py-3 rounded-md font-semibold bg-gray-100 text-gray-900"
+                      style={{
+                        textAlign: "center",
+                        padding: "12px",
+                        borderRadius: "8px",
+                        fontWeight: 600,
+                        background: "#F3F4F6",
+                        color: "#111827",
+                        textDecoration: "none",
+                      }}
                     >
                       Upgrade to Family Membership
                     </Link>
@@ -201,24 +315,38 @@ export default function Membership() {
                 <>
                   <Link
                     to={`/${clubSlug}/membership/renew`}
-                    className="block text-center py-3 rounded-md font-semibold"
-                    style={{ background: brand, color: "white" }}
+                    style={{
+                      textAlign: "center",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      fontWeight: 600,
+                      background: brand,
+                      color: "white",
+                      textDecoration: "none",
+                    }}
                   >
                     Renew Membership
                   </Link>
 
                   <Link
                     to={`/${clubSlug}/membership/join`}
-                    className="block text-center py-3 rounded-md font-semibold bg-gray-100 text-gray-900"
+                    style={{
+                      textAlign: "center",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      fontWeight: 600,
+                      background: "#F3F4F6",
+                      color: "#111827",
+                      textDecoration: "none",
+                    }}
                   >
                     Start a New Membership
                   </Link>
                 </>
               )}
             </section>
-
           </div>
-        </div>
+        </Card>
       </main>
     </div>
   );

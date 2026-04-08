@@ -37,7 +37,8 @@ export default function Login() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    // 1️⃣ LOGIN
+    const { data: loginData, error } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
     });
@@ -52,13 +53,77 @@ export default function Login() {
       return;
     }
 
+    // 2️⃣ GET USER
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setErrorMsg("Login failed. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    const userId = user.id;
+    const userEmail = user.email?.toLowerCase();
+
+    // 3️⃣ ENSURE PROFILE EXISTS
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!existingProfile) {
+      await supabase.from("profiles").insert({
+        id: userId,
+        email: userEmail,
+        full_name: user.user_metadata?.full_name || "",
+        first_name: user.user_metadata?.first_name || "",
+        last_name: user.user_metadata?.last_name || "",
+        club_id: club.id,
+      });
+    }
+
+    // 4️⃣ LOOK UP MEMBERSHIP BY EMAIL + CLUB
+    const { data: membership } = await supabase
+      .from("household_memberships")
+      .select("*")
+      .eq("club_id", club.id)
+      .ilike("email", userEmail)
+      .maybeSingle();
+
+    // 5️⃣ IF MEMBERSHIP EXISTS → LINK USER
+    if (membership) {
+      await supabase
+        .from("household_memberships")
+        .update({
+          user_id: userId,
+          primary_first_name:
+            user.user_metadata?.first_name || membership.primary_first_name,
+          primary_last_name:
+            user.user_metadata?.last_name || membership.primary_last_name,
+          status: "active",
+        })
+        .eq("id", membership.id);
+
+      // 6️⃣ UPDATE PROFILE WITH MEMBERSHIP ID
+      await supabase
+        .from("profiles")
+        .update({
+          membership_id: membership.id,
+        })
+        .eq("id", userId);
+    }
+
+    // 7️⃣ NAVIGATE INTO APP
     navigate(`/${clubSlug}/app/`);
   }
 
   return (
     <div
       style={{
-        padding: "32px 24px 0 24px",   // no bottom padding
+        padding: "32px 24px 0 24px",
         width: "100%",
         maxWidth: "360px",
         margin: "0 auto",
@@ -66,7 +131,7 @@ export default function Login() {
         flexDirection: "column",
         alignItems: "center",
         boxSizing: "border-box",
-        minHeight: "100vh",            // forces scroll on mobile
+        minHeight: "100vh",
         justifyContent: "flex-start",
       }}
     >
@@ -129,7 +194,6 @@ export default function Login() {
         </Button>
       </form>
 
-      {/* SIGNUP CTA */}
       <p style={{ textAlign: "center", marginTop: "24px", color: "#666" }}>
         Don’t have an account?{" "}
         <Link
@@ -140,7 +204,6 @@ export default function Login() {
         </Link>
       </p>
 
-      {/* ONE-LINE CENTERED LINKS BELOW CTA */}
       <div
         style={{
           width: "100%",
@@ -168,23 +231,16 @@ export default function Login() {
         </Link>
       </div>
 
-      {/* 🔴 BACK TO CLUBS BUTTON */}
       <div
-  style={{
-    marginTop: "16px",
-    width: "100%",
-    display: "flex",
-    justifyContent: "center",
-  }}
->
-  <Button
-    onClick={() => navigate("/")}
-    className="w-full py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700"
-  >
-    ← Back to Clubs
-  </Button>
-</div>
-
+        style={{
+          marginTop: "16px",
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        <Button onClick={() => navigate("/")}>← Back to Clubs</Button>
+      </div>
     </div>
   );
 }

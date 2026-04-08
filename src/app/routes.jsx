@@ -49,12 +49,15 @@ import NominationsExport from "@app/pages/admin/NominationsExport";
 
 // ADMIN SETTINGS
 import ClubSettings from "@app/pages/admin/settings/ClubSettings";
-import ClubInfoSettings from "@app/pages/admin/settings/ClubInfoSettings";
 import MembershipSettings from "@app/pages/admin/settings/MembershipSettings";
 import EventDefaultsSettings from "@app/pages/admin/settings/EventDefaultsSettings";
 import DriverSettings from "@app/pages/admin/settings/DriverSettings";
 import SystemSettings from "@app/pages/admin/settings/SystemSettings";
-import ClassesSettings from "@app/pages/admin/settings/ClassesSettings";
+import TracksAndClasses from "@app/pages/admin/settings/TracksAndClasses";
+import ClassEditor from "@app/pages/admin/settings/ClassEditor";
+
+// ⭐ ADD THIS IMPORT
+import ClubInfoSettings from "@app/pages/admin/settings/ClubInfoSettings";
 
 // MEMBERSHIP
 import Membership from "@app/pages/membership/Membership";
@@ -111,7 +114,7 @@ export default function RoutesFile() {
           <Route path="*" element={<Navigate to="login" replace />} />
         </Route>
 
-        {/* APP (normal user pages) */}
+        {/* APP */}
         <Route
           path="/:clubSlug/app/*"
           element={
@@ -157,7 +160,7 @@ export default function RoutesFile() {
           <Route path="*" element={<Navigate to="" replace />} />
         </Route>
 
-        {/* ADMIN (NO AppLayout → fixes double header) */}
+        {/* ADMIN */}
         <Route
           path="/:clubSlug/app/admin/*"
           element={
@@ -170,12 +173,21 @@ export default function RoutesFile() {
 
           {/* ADMIN SETTINGS */}
           <Route path="settings" element={<ClubSettings />} />
-          <Route path="settings/info" element={<ClubInfoSettings />} />
-          <Route path="settings/membership" element={<MembershipSettings />} />
-          <Route path="settings/events" element={<EventDefaultsSettings />} />
+
+          {/* ⭐ THIS IS THE ROUTE YOU WERE MISSING */}
+          <Route path="settings/club-info" element={<ClubInfoSettings />} />
+
+          <Route path="settings/memberships" element={<MembershipSettings />} />
+          <Route path="settings/event-defaults" element={<EventDefaultsSettings />} />
           <Route path="settings/drivers" element={<DriverSettings />} />
           <Route path="settings/system" element={<SystemSettings />} />
-          <Route path="settings/classes" element={<ClassesSettings />} />
+
+          {/* TRACKS & CLASSES */}
+          <Route path="settings/classes">
+            <Route index element={<TracksAndClasses />} />
+            <Route path="new" element={<ClassEditor mode="create" />} />
+            <Route path=":classId" element={<ClassEditor mode="edit" />} />
+          </Route>
 
           {/* EVENTS */}
           <Route path="events" element={<AdminEvents />} />
@@ -196,7 +208,6 @@ export default function RoutesFile() {
 
           <Route path="*" element={<Navigate to="" replace />} />
         </Route>
-
       </Route>
 
       {/* GLOBAL FALLBACK */}

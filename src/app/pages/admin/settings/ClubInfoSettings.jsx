@@ -1,170 +1,438 @@
 // src/app/pages/admin/settings/ClubInfoSettings.jsx
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useClub } from "@/app/providers/ClubProvider";
 import { supabase } from "@/supabaseClient";
 
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 
-import { InformationCircleIcon } from "@heroicons/react/24/solid";
-
 export default function ClubInfoSettings() {
-  return <div>Club Info Settings</div>;
-  const { club, refreshClub } = useClub();
+  const { club, loadingClub, refreshClub } = useClub();
 
-  const brand = club?.theme?.hero?.backgroundColor || "#0A66C2";
+  const [form, setForm] = useState(null);
+  const [initialForm, setInitialForm] = useState(null);
 
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const autosaveTimer = useRef(null);
 
-  // Form state
-  const [name, setName] = useState("");
-  const [shortName, setShortName] = useState("");
-  const [email, setEmail] = useState("");
-  const [website, setWebsite] = useState("");
-  const [description, setDescription] = useState("");
-
-  /* ===========================
-     LOAD EXISTING CLUB INFO
-     =========================== */
+  // -----------------------------
+  // INITIAL LOAD
+  // -----------------------------
   useEffect(() => {
     if (!club) return;
 
-    setName(club.name || "");
-    setShortName(club.short_name || "");
-    setEmail(club.contact_email || "");
-    setWebsite(club.website || "");
-    setDescription(club.description || "");
+    const next = {
+      name: club.name || "",
+      logo_url: club.logo_url || "",
+      primary_color: club.primary_color || "#3F7AEB", // Chargers Blue
+      background_image_url: club.background_image_url || "",
+    };
+
+    setForm(next);
+    setInitialForm(next);
+    setError("");
   }, [club]);
 
-  /* ===========================
-     SAVE CLUB INFO
-     =========================== */
-  async function handleSave() {
-    if (!club?.id) return;
+  // -----------------------------
+  // HARD GUARD — prevents blank page
+  // -----------------------------
+  if (loadingClub || !club || !form || !initialForm) {
+    return (
+      <div style={{ padding: 40, textAlign: "center" }}>
+        Loading club…
+      </div>
+    );
+  }
+
+  // -----------------------------
+  // HELPERS
+  // -----------------------------
+  function updateField(key, value) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setError("");
+
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+
+    autosaveTimer.current = setTimeout(() => {
+      save(true);
+    }, 1000);
+  }
+
+  function hasChanges() {
+    return (
+      form.name !== initialForm.name ||
+      form.logo_url !== initialForm.logo_url ||
+      form.primary_color !== initialForm.primary_color ||
+      form.background_image_url !== initialForm.background_image_url
+    );
+  }
+
+  // -----------------------------
+  // SAVE
+  // -----------------------------
+  async function save(isAutosave = false) {
+    if (!form.name.trim()) {
+      if (!isAutosave) setError("Club name is required.");
+      return;
+    }
+
+    if (!hasChanges()) return;
 
     setSaving(true);
 
-    const { error } = await supabase
+    const { error: updateError } = await supabase
       .from("clubs")
       .update({
-        name,
-        short_name: shortName,
-        contact_email: email,
-        website,
-        description,
+        name: form.name,
+        logo_url: form.logo_url || null,
+        primary_color: form.primary_color,
+        background_image_url: form.background_image_url || null,
       })
       .eq("id", club.id);
 
     setSaving(false);
 
-    if (!error) {
-      refreshClub(); // reload club context
-      alert("Club information updated.");
-    } else {
-      alert("Error saving club info.");
+    if (updateError) {
+      console.error(">>> save club info error", updateError);
+      setError("Error saving club info.");
+      return;
     }
+
+    setInitialForm(form);
+    refreshClub();
   }
 
-  return (
-    <div className="min-h-screen w-full bg-background text-text-base">
+  // -----------------------------
+  // RESET
+  // -----------------------------
+  function reset() {
+    setForm(initialForm);
+    setError("");
+  }
 
-      {/* HEADER */}
-      <section className="w-full border-b border-surfaceBorder bg-surface">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-2">
-          <InformationCircleIcon className="h-5 w-5" style={{ color: brand }} />
-          <h1 className="text-xl font-semibold tracking-tight">Club Information</h1>
+  // -----------------------------
+  // UPLOAD: LOGO
+  // -----------------------------
+  async function uploadLogo(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ext = file.name.split(".").pop().toLowerCase();
+    const path = `${club.slug}/logo.${ext}`;
+
+    await supabase.storage.from("club-assets").remove([path]);
+
+    const { error: uploadError } = await supabase.storage
+      .from("club-assets")
+      .upload(path, file);
+
+    if (uploadError) {
+      console.error(">>> logo upload error", uploadError);
+      setError("Error uploading logo.");
+      return;
+    }
+
+    const { data } = supabase.storage
+      .from("club-assets")
+      .getPublicUrl(path);
+
+    updateField("logo_url", data.publicUrl);
+  }
+
+  // -----------------------------
+  // UPLOAD: BACKGROUND IMAGE
+  // -----------------------------
+  async function uploadBackground(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ext = file.name.split(".").pop().toLowerCase();
+    const path = `${club.slug}/background.${ext}`;
+
+    await supabase.storage.from("club-assets").remove([path]);
+
+    const { error: uploadError } = await supabase.storage
+      .from("club-assets")
+      .upload(path, file);
+
+    if (uploadError) {
+      console.error(">>> background upload error", uploadError);
+      setError("Error uploading background image.");
+      return;
+    }
+
+    const { data } = supabase.storage
+      .from("club-assets")
+      .getPublicUrl(path);
+
+    updateField("background_image_url", data.publicUrl);
+  }
+
+  // -----------------------------
+  // RENDER
+  // -----------------------------
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        width: "100%",
+        background: "var(--background)",
+        color: "var(--text-base)",
+      }}
+    >
+      {/* PAGE HEADER — matches AdminEvents, Tracks, MembershipSettings */}
+      <section
+        style={{
+          width: "100%",
+          borderBottom: "1px solid var(--surface-border)",
+          background: "var(--surface)",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "960px",
+            margin: "0 auto",
+            padding: "16px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <h1 style={{ fontSize: 20, fontWeight: 600 }}>Club Info</h1>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button variant="secondary" onClick={reset}>
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => save(false)}
+              disabled={!hasChanges() || saving}
+            >
+              {saving ? "Saving…" : "Save"}
+            </Button>
+          </div>
         </div>
       </section>
 
-      {/* MAIN */}
-      <main className="max-w-4xl mx-auto px-4 py-10 space-y-10">
-
-        <Card
-          className="rounded-xl shadow-sm overflow-hidden !p-0"
-          style={{ border: `2px solid ${brand}`, background: "white" }}
-        >
-          {/* BLUE HEADER BAR */}
+      {/* PAGE BODY — matches all admin pages */}
+      <main
+        style={{
+          maxWidth: "960px",
+          margin: "0 auto",
+          padding: "40px 16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "24px",
+        }}
+      >
+        {error && (
           <div
-            className="px-5 py-3"
-            style={{ background: brand, color: "white" }}
+            style={{
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: "1px solid #f87171",
+              background: "#fef2f2",
+              color: "#b91c1c",
+            }}
           >
-            <h2 className="text-base font-semibold">General Information</h2>
+            {error}
+          </div>
+        )}
+
+        {/* CARD 1 — CLUB DETAILS */}
+        <Card
+          noPadding
+          style={{
+            border: `2px solid ${form.primary_color}`,
+            background: "white",
+            borderRadius: 12,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              background: form.primary_color,
+              color: "white",
+              padding: "16px 20px",
+            }}
+          >
+            <h2 style={{ fontSize: 16, fontWeight: 600 }}>Club Details</h2>
           </div>
 
-          {/* FORM */}
-          <div className="p-6 space-y-6">
+          <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 20 }}>
+            <Field
+              label="Club Name"
+              value={form.name}
+              onChange={(v) => updateField("name", v)}
+              required
+            />
 
-            {/* Club Name */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Club Name</label>
-              <input
-                type="text"
-                className="w-full rounded-md border border-gray-300 px-3 py-2"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-
-            {/* Short Name */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Short Name</label>
-              <input
-                type="text"
-                className="w-full rounded-md border border-gray-300 px-3 py-2"
-                value={shortName}
-                onChange={(e) => setShortName(e.target.value)}
-              />
-            </div>
-
-            {/* Contact Email */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Contact Email</label>
-              <input
-                type="email"
-                className="w-full rounded-md border border-gray-300 px-3 py-2"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-
-            {/* Website */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Website</label>
-              <input
-                type="text"
-                className="w-full rounded-md border border-gray-300 px-3 py-2"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-              />
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Description</label>
-              <textarea
-                className="w-full rounded-md border border-gray-300 px-3 py-2 h-32"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
-
-            {/* SAVE BUTTON */}
-            <div className="pt-4">
-              <Button
-                className="!rounded-lg !py-3 px-6 text-white font-medium"
-                style={{ background: brand }}
-                onClick={handleSave}
-                disabled={saving}
+            {/* LOGO */}
+            <div style={{ display: "flex", gap: 20 }}>
+              <div
+                style={{
+                  width: 140,
+                  height: 140,
+                  borderRadius: 12,
+                  border: "1px solid var(--surface-border)",
+                  background: "#f9fafb",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                }}
               >
-                {saving ? "Saving…" : "Save Changes"}
-              </Button>
-            </div>
+                {form.logo_url ? (
+                  <img
+                    src={form.logo_url}
+                    alt="Club logo"
+                    style={{ maxWidth: "100%", maxHeight: "100%" }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                    No logo
+                  </span>
+                )}
+              </div>
 
+              <div style={{ flex: 1 }}>
+                <label style={{ fontWeight: 600 }}>Logo</label>
+                <input type="file" accept="image/*" onChange={uploadLogo} />
+              </div>
+            </div>
           </div>
         </Card>
 
+        {/* CARD 2 — BRANDING */}
+        <Card
+          noPadding
+          style={{
+            border: `2px solid ${form.primary_color}`,
+            background: "white",
+            borderRadius: 12,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              background: form.primary_color,
+              color: "white",
+              padding: "16px 20px",
+            }}
+          >
+            <h2 style={{ fontSize: 16, fontWeight: 600 }}>Branding</h2>
+          </div>
+
+          <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* PRIMARY COLOR */}
+            <div>
+              <label style={{ fontWeight: 600 }}>Primary Colour</label>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <input
+                  type="color"
+                  value={form.primary_color}
+                  onChange={(e) => updateField("primary_color", e.target.value)}
+                  style={{
+                    width: 50,
+                    height: 34,
+                    borderRadius: 6,
+                    border: "1px solid var(--surface-border)",
+                    cursor: "pointer",
+                  }}
+                />
+
+                <input
+                  type="text"
+                  value={form.primary_color}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) {
+                      updateField("primary_color", v);
+                    }
+                  }}
+                  style={{
+                    width: 100,
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                    border: "1px solid var(--surface-border)",
+                    fontFamily: "monospace",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* BACKGROUND IMAGE */}
+            <div>
+              <label style={{ fontWeight: 600 }}>Background Image</label>
+
+              <div
+                style={{
+                  width: "100%",
+                  height: 160,
+                  borderRadius: 12,
+                  border: "1px solid var(--surface-border)",
+                  background: "#f3f4f6",
+                  overflow: "hidden",
+                  marginBottom: 8,
+                }}
+              >
+                {form.background_image_url ? (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      backgroundImage: `url(${form.background_image_url})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--text-muted)",
+                      fontSize: 12,
+                    }}
+                  >
+                    No background image
+                  </div>
+                )}
+              </div>
+
+              <input type="file" accept="image/*" onChange={uploadBackground} />
+            </div>
+          </div>
+        </Card>
       </main>
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, required }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <label style={{ fontWeight: 600 }}>
+        {label}
+        {required && <span style={{ color: "#dc2626" }}> *</span>}
+      </label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          padding: 10,
+          borderRadius: 8,
+          border: "1px solid var(--surface-border)",
+        }}
+      />
     </div>
   );
 }

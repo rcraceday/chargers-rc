@@ -16,7 +16,7 @@ export function useClub() {
 
 export default function ClubProvider({ children }) {
   const location = useLocation();
-  const { loadingUser } = useAuth();
+  const { user, loadingUser } = useAuth();
 
   const RESERVED_TOP_SEGMENTS = new Set([
     "home",
@@ -40,13 +40,10 @@ export default function ClubProvider({ children }) {
   const [club, setClub] = useState(null);
   const [loadingClub, setLoadingClub] = useState(true);
 
-  // ⭐ FIXED — no useCallback, no stale closures
+  /* ------------------------------------------------------------
+     Load club
+     ------------------------------------------------------------ */
   async function loadClub() {
-    console.log("ClubProvider.loadClub start", {
-      clubSlug,
-      pathname: location.pathname,
-    });
-
     if (!clubSlug) {
       setClub(null);
       setLoadingClub(true);
@@ -63,7 +60,6 @@ export default function ClubProvider({ children }) {
         .maybeSingle();
 
       if (error) {
-        console.warn("ClubProvider loadClub error:", error);
         setClub(null);
       } else if (data) {
         let theme = data.theme;
@@ -93,26 +89,82 @@ export default function ClubProvider({ children }) {
       setClub(null);
     } finally {
       setLoadingClub(false);
-      console.log("ClubProvider.loadClub finished", { clubSlug });
     }
   }
 
-  // ⭐ FIXED EFFECT — always re-runs when loadingUser flips
-  useEffect(() => {
-    console.log("ClubProvider useEffect triggered", {
-      clubSlug,
-      pathname: location.pathname,
-      loadingUser,
-    });
+  /* ------------------------------------------------------------
+     Membership linking logic
+     ------------------------------------------------------------ */
+  async function linkMembershipIfNeeded() {
+    if (!user || !club) return;
 
-    if (loadingUser) {
-      console.log("ClubProvider: waiting for AuthProvider hydration");
+    const userEmail = user.email?.toLowerCase();
+    if (!userEmail) return;
+
+    // 1️⃣ Find membership by email + club
+    const { data: membership, error: mErr } = await supabase
+      .from("household_memberships")
+      .select("*")
+      .eq("club_id", club.id)
+      .ilike("email", userEmail)
+      .maybeSingle();
+
+    if (mErr) {
+      console.error("Membership lookup error:", mErr);
       return;
     }
 
+    if (!membership) {
+      // User is not a financial member — nothing to link
+      return;
+    }
+
+    // 2️⃣ If already linked, nothing to do
+    if (membership.user_id === user.id) {
+      return;
+    }
+
+    // 3️⃣ Link membership to user
+    const { error: updateErr } = await supabase
+      .from("household_memberships")
+      .update({
+        user_id: user.id,
+        primary_first_name:
+          user.user_metadata?.first_name || membership.primary_first_name,
+        primary_last_name:
+          user.user_metadata?.last_name || membership.primary_last_name,
+        status: "active",
+      })
+      .eq("id", membership.id);
+
+    if (updateErr) {
+      console.error("Membership linking error:", updateErr);
+      return;
+    }
+
+    console.log("Membership linked successfully:", membership.id);
+  }
+
+  /* ------------------------------------------------------------
+     Load club when user hydration completes
+     ------------------------------------------------------------ */
+  useEffect(() => {
+    if (loadingUser) return;
     loadClub();
   }, [clubSlug, loadingUser]);
 
+  /* ------------------------------------------------------------
+     Link membership when both user + club are ready
+     ------------------------------------------------------------ */
+  useEffect(() => {
+    if (!loadingUser && !loadingClub && user && club) {
+      linkMembershipIfNeeded();
+    }
+  }, [loadingUser, loadingClub, user, club]);
+
+  /* ------------------------------------------------------------
+     Provider output
+     ------------------------------------------------------------ */
   if (loadingUser || !clubSlug || loadingClub) {
     return (
       <ClubContext.Provider

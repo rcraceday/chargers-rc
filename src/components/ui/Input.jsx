@@ -1,5 +1,6 @@
 // src/components/ui/Input.jsx
 import React from "react";
+import { useOutletContext } from "react-router-dom";
 
 export default function Input({
   label,
@@ -9,12 +10,48 @@ export default function Input({
   onChange,
   required = false,
   className = "",
+  style = {},
   ...props
 }) {
+  const outlet = useOutletContext() || {};
+  const club = outlet.club;
+  const theme = club?.theme;
+
+  const brand = theme?.hero?.backgroundColor || "#0A66C2";
+
+  const baseInputStyle = {
+    width: "100%",
+    padding: "10px 14px",
+    fontSize: "14px",
+    borderRadius: "6px",
+    border: "1px solid #D0D5DD",
+    background: "#FFFFFF",
+    color: "#1A1A1A",
+    transition: "all 0.2s ease",
+    outline: "none",
+    ...style,
+  };
+
+  const handleFocus = (e) => {
+    e.target.style.border = `1px solid ${brand}`;
+    e.target.style.boxShadow = `0 0 0 3px ${brand}33`; // subtle brand glow
+  };
+
+  const handleBlur = (e) => {
+    e.target.style.border = "1px solid #D0D5DD";
+    e.target.style.boxShadow = "none";
+  };
+
   return (
-    <div className="flex flex-col gap-1 w-full">
+    <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%" }}>
       {label && (
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label
+          style={{
+            fontSize: "14px",
+            fontWeight: 600,
+            color: "#333333",
+          }}
+        >
           {label}
         </label>
       )}
@@ -24,10 +61,10 @@ export default function Input({
           value={value}
           onChange={onChange}
           required={required}
-          className={
-            "border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-300 " +
-            className
-          }
+          style={{ ...baseInputStyle, minHeight: "90px", resize: "vertical" }}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          className={className}
           {...props}
         />
       ) : (
@@ -36,10 +73,10 @@ export default function Input({
           value={value}
           onChange={onChange}
           required={required}
-          className={
-            "border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-300 " +
-            className
-          }
+          style={baseInputStyle}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          className={className}
           {...props}
         />
       )}
