@@ -1,16 +1,16 @@
 // src/app/pages/profile/AddDriver.jsx
+
 import React, { useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 
 import { useMembership } from "@/app/providers/MembershipProvider";
 import { useProfile } from "@/app/providers/ProfileProvider";
+import { useDrivers } from "@/app/providers/DriverProvider";
 
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-
-import { UserPlusIcon } from "@heroicons/react/24/solid";
 
 function SimpleSpinner() {
   return (
@@ -27,6 +27,7 @@ export default function AddDriver() {
 
   const { membership, loadingMembership } = useMembership();
   const { user, loadingProfile } = useProfile();
+  const { refreshDrivers } = useDrivers();
 
   const brand = club?.theme?.hero?.backgroundColor || "#0A66C2";
 
@@ -34,26 +35,28 @@ export default function AddDriver() {
   const [lastName, setLastName] = useState("");
   const [isJunior, setIsJunior] = useState(false);
 
+  // Only visible for MEMBERS
+  const [isMemberOnly, setIsMemberOnly] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const capitalise = (str) =>
-    str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-
-  // HYDRATION GUARD
   if (loadingProfile || loadingMembership) {
     return <SimpleSpinner />;
   }
 
-  const handleAddDriver = async () => {
+  const membershipTypeRaw =
+    membership?.membership_type || membership?.type || membership?.plan;
+
+  const membershipType = membershipTypeRaw
+    ? membershipTypeRaw.toLowerCase().trim()
+    : null;
+
+  const isNonMember = membershipType === "non_member";
+
+  const handleSubmit = async () => {
     setSaving(true);
     setError("");
-
-    if (!membership) {
-      setError("No active membership found.");
-      setSaving(false);
-      return;
-    }
 
     if (!user) {
       setError("You must be logged in to add a driver.");
@@ -61,8 +64,8 @@ export default function AddDriver() {
       return;
     }
 
-    const trimmedFirst = capitalise(firstName.trim());
-    const trimmedLast = capitalise(lastName.trim());
+    const trimmedFirst = firstName.trim();
+    const trimmedLast = lastName.trim();
 
     if (!trimmedFirst || !trimmedLast) {
       setError("First and last name are required.");
@@ -70,7 +73,60 @@ export default function AddDriver() {
       return;
     }
 
-    // LIVE TIME NAME VALIDATION
+    // ------------------------------------------------------
+    // NON‑MEMBER FLOW (driver only, no club_members)
+    // ------------------------------------------------------
+    if (isNonMember) {
+      const { error: insertError } = await supabase
+        .from("drivers")
+        .insert({
+          membership_id: null,
+          club_id: club.id,
+          first_name: trimmedFirst,
+          last_name: trimmedLast,
+          is_junior: isJunior,
+        });
+
+      if (insertError) {
+        setError(insertError.message);
+        setSaving(false);
+        return;
+      }
+
+      await refreshDrivers();
+      navigate(`/${clubSlug}/app`);
+      return;
+    }
+
+    // ------------------------------------------------------
+    // MEMBER FLOW — MEMBER‑ONLY (NO DRIVER)
+    // ------------------------------------------------------
+    if (isMemberOnly) {
+      const { error: insertMemberError } = await supabase
+        .from("club_members")
+        .insert({
+          membership_id: membership.id,
+          first_name: trimmedFirst,
+          last_name: trimmedLast,
+          is_junior: isJunior,
+          driver_id: null,
+        });
+
+      if (insertMemberError) {
+        setError(insertMemberError.message);
+        setSaving(false);
+        return;
+      }
+
+      navigate(`/${clubSlug}/app/profile/drivers`);
+      return;
+    }
+
+    // ------------------------------------------------------
+    // MEMBER FLOW — DRIVER CREATION
+    // ------------------------------------------------------
+
+    // 1. Check for existing driver with same name
     const { data: existing, error: lookupError } = await supabase
       .from("drivers")
       .select("id")
@@ -94,7 +150,7 @@ export default function AddDriver() {
       return;
     }
 
-    // INSERT DRIVER — ⭐ FIXED: added club_id
+    // 2. Create driver
     const { data: driver, error: insertError } = await supabase
       .from("drivers")
       .insert({
@@ -113,7 +169,16 @@ export default function AddDriver() {
       return;
     }
 
-    // ⭐ NEW — MID-SEASON NUMBER RECONCILIATION
+    // ⭐ 3. ALWAYS INSERT A NEW CLUB MEMBER ROW (correct behaviour)
+    await supabase.from("club_members").insert({
+      membership_id: membership.id,
+      driver_id: driver.id,
+      first_name: trimmedFirst,
+      last_name: trimmedLast,
+      is_junior: isJunior,
+    });
+
+    // 4. Reconcile number
     await supabase.rpc("reconcile_driver_number", {
       p_club_id: club.id,
       p_driver_id: driver.id,
@@ -121,15 +186,9 @@ export default function AddDriver() {
       p_last_name: trimmedLast,
     });
 
-    // ⭐ NEW — Reload driver to get permanent_number
-    const { data: refreshed } = await supabase
-      .from("drivers")
-      .select("*")
-      .eq("id", driver.id)
-      .single();
+    await refreshDrivers();
 
-    // ⭐ Navigate to EditDriver with synced number
-    navigate(`/${clubSlug}/app/profile/drivers/${driver.id}/edit`);
+    navigate(`/${clubSlug}/app/profile/drivers`);
   };
 
   return (
@@ -138,15 +197,13 @@ export default function AddDriver() {
       {/* HEADER */}
       <section className="w-full border-b border-surfaceBorder bg-surface">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-2">
-          <UserPlusIcon className="h-5 w-5" style={{ color: brand }} />
           <h1 className="text-xl font-semibold tracking-tight">Add Driver</h1>
         </div>
       </section>
 
       {/* MAIN */}
-      <main className="max-w-3xl mx-auto px-4 space-y-12 pb-10 flex flex-col">
+      <main className="max-w-3xl mx-auto px-4 py-10 space-y-10">
 
-        {/* FORM CARD WITH BLUE BORDER */}
         <Card
           className="p-6 space-y-6"
           style={{ border: `2px solid ${brand}` }}
@@ -157,59 +214,55 @@ export default function AddDriver() {
             </div>
           )}
 
-          <div className="space-y-4">
+          <Input
+            label="First Name"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            required
+          />
 
-            <Input
-              label="First Name"
-              value={firstName}
-              onChange={(e) => setFirstName(capitalise(e.target.value))}
-              required
+          <Input
+            label="Last Name"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            required
+          />
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={isJunior}
+              onChange={(e) => setIsJunior(e.target.checked)}
             />
+            Junior
+          </label>
 
-            <Input
-              label="Last Name"
-              value={lastName}
-              onChange={(e) => setLastName(capitalise(e.target.value))}
-              required
-            />
-
+          {/* Only show for MEMBERS */}
+          {!isNonMember && (
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                checked={isJunior}
-                onChange={(e) => setIsJunior(e.target.checked)}
+                checked={isMemberOnly}
+                onChange={(e) => setIsMemberOnly(e.target.checked)}
               />
-              Junior Driver
+              Non‑Driver Member (does not race)
             </label>
+          )}
 
-            <Button
-              onClick={handleAddDriver}
-              disabled={saving}
-              className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-            >
-              {saving ? "Adding..." : "Add Driver"}
-            </Button>
-          </div>
+          <Button
+            onClick={handleSubmit}
+            disabled={saving}
+            className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {saving
+              ? "Adding…"
+              : isNonMember
+              ? "Add Driver"
+              : isMemberOnly
+              ? "Add Member"
+              : "Add Driver"}
+          </Button>
         </Card>
-
-        {/* EXPLANATION */}
-        <Card className="p-6 space-y-3 text-sm text-gray-700">
-          <h2 className="font-semibold text-base">Important for Returning Racers</h2>
-          <p>
-            If this driver has raced with LiveTime before, their <strong>first and last
-            name must match exactly</strong> as it appears in LiveTime.
-          </p>
-          <p>
-            Even small differences — spelling, spacing, punctuation, or capitalisation —
-            will cause LiveTime to treat them as a new racer. This means previous
-            results, seeding, and history will not carry over.
-          </p>
-          <p>
-            If you’re unsure of the correct spelling, please check LiveTime or ask race
-            control before creating the driver.
-          </p>
-        </Card>
-
       </main>
     </div>
   );

@@ -1,261 +1,249 @@
 // src/app/pages/profile/EditProfile.jsx
 
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { UserIcon } from "@heroicons/react/24/solid";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useParams, useOutletContext } from "react-router-dom";
 
-import { useClub } from "@/app/providers/ClubProvider";
-import { useProfile } from "@/app/providers/ProfileProvider";
+import { useDrivers } from "@/app/providers/DriverProvider";
+import { useMembership } from "@/app/providers/MembershipProvider";
 
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
+
+import EditDriverProfileCard from "@/components/driver/EditDriverProfileCard";
+
 import { supabase } from "@/supabaseClient";
 
 export default function EditProfile() {
-  const { clubSlug } = useParams();
   const navigate = useNavigate();
-
-  const { club } = useClub();
-  const { profile } = useProfile();
-
+  const { club } = useOutletContext();
   const brand = club?.theme?.hero?.backgroundColor || "#0A66C2";
 
-  const [firstName] = useState(profile?.first_name || "");
-  const [lastName] = useState(profile?.last_name || "");
+  const { id } = useParams();
+  const { drivers, loadingDrivers, refreshDrivers, deleteDriver } = useDrivers();
+  const { membership } = useMembership();
 
-  const [oldEmail, setOldEmail] = useState("");
-  const [newEmail, setNewEmail] = useState("");
-  const [emailPassword, setEmailPassword] = useState("");
-  const [emailMessage, setEmailMessage] = useState("");
-  const [emailError, setEmailError] = useState("");
+  const [driver, setDriver] = useState(null);
+  const [dirty, setDirty] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [pendingDestination, setPendingDestination] = useState(null);
 
-  const [oldPassword, setOldPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordMessage, setPasswordMessage] = useState("");
-  const [passwordError, setPasswordError] = useState("");
+  const [previewNumber, setPreviewNumber] = useState(null);
 
-  /* ============================================================
-     EMAIL UPDATE
-     ============================================================ */
+  // LOAD DRIVER
+  useEffect(() => {
+    if (!loadingDrivers && drivers?.length > 0) {
+      const d = drivers.find((dr) => String(dr.id) === String(id));
+      setDriver(d || null);
 
-  const handleUpdateEmail = async () => {
-    setEmailError("");
-    setEmailMessage("");
+      if (d?.permanent_number !== undefined) {
+        setPreviewNumber(d.permanent_number);
+      }
+    }
+  }, [loadingDrivers, drivers, id]);
 
-    if (oldEmail !== profile.email) {
-      setEmailError("Old email does not match your current email.");
+  // UPDATE FIELD
+  const update = (field, value) => {
+    setDirty(true);
+    setDriver((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // AVATAR HANDLERS
+  const handleAvatarSelect = (file) => {
+    setDirty(true);
+    update("avatar_file", file);
+  };
+
+  const handleRemoveAvatar = () => {
+    setDirty(true);
+    update("avatar_url", null);
+  };
+
+  // SAVE DRIVER
+  const save = async () => {
+    if (!driver) return;
+
+    const updatePayload = { ...driver };
+    delete updatePayload.avatar_file;
+
+    const { error } = await supabase
+      .from("drivers")
+      .update(updatePayload)
+      .eq("id", driver.id);
+
+    if (error) {
+      console.error("Failed to update driver:", error);
       return;
     }
 
-    if (!newEmail || !emailPassword) {
-      setEmailError("Enter your new email and password.");
-      return;
+    if (driver.avatar_file) {
+      const file = driver.avatar_file;
+      const filePath = `avatars/${driver.id}-${Date.now()}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("driver-avatars")
+        .upload(filePath, file, { upsert: true });
+
+      if (!uploadError) {
+        const { data: publicUrl } = supabase.storage
+          .from("driver-avatars")
+          .getPublicUrl(filePath);
+
+        await supabase
+          .from("drivers")
+          .update({ avatar_url: publicUrl.publicUrl })
+          .eq("id", driver.id);
+      }
     }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: profile.email,
-      password: emailPassword,
-    });
+    setDirty(false);
+    refreshDrivers();
+  };
 
-    if (signInError) {
-      setEmailError("Incorrect password.");
+  // GUARDED NAVIGATION
+  const requestNavigate = (to) => {
+    if (!dirty) {
+      navigate(to);
       return;
     }
+    setPendingDestination(to);
+    setShowPrompt(true);
+  };
 
-    await supabase.auth.updateUser({ email: newEmail });
+  const handleConfirmSave = async () => {
+    const target = pendingDestination ?? null;
+    setShowPrompt(false);
+    setPendingDestination(null);
+    await save();
+    if (target) navigate(target);
+  };
 
-    setEmailMessage(
-      "A confirmation email has been sent to your new address. Your email will update once confirmed."
+  const handleDiscard = () => {
+    const target = pendingDestination ?? -1;
+    setDirty(false);
+    setShowPrompt(false);
+    setPendingDestination(null);
+    navigate(target);
+  };
+
+  const handleCancelPrompt = () => {
+    setShowPrompt(false);
+    setPendingDestination(null);
+  };
+
+  // BEFORE UNLOAD
+  useEffect(() => {
+    const handler = (e) => {
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
+  if (loadingDrivers) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-sm text-text-muted">Loading driver…</p>
+      </div>
     );
+  }
 
-    setOldEmail("");
-    setNewEmail("");
-    setEmailPassword("");
-  };
+  if (!driver) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card
+          className="p-6 max-w-sm w-full text-center text-sm text-text-muted"
+          style={{ border: `2px solid ${brand}` }}
+        >
+          Driver not found.
+        </Card>
+      </div>
+    );
+  }
 
-  /* ============================================================
-     PASSWORD UPDATE
-     ============================================================ */
-
-  const handleChangePassword = async () => {
-    setPasswordError("");
-    setPasswordMessage("");
-
-    if (!oldPassword || !newPassword || !confirmPassword) {
-      setPasswordError("Fill in all password fields.");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError("New passwords do not match.");
-      return;
-    }
-
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: profile.email,
-      password: oldPassword,
-    });
-
-    if (signInError) {
-      setPasswordError("Old password is incorrect.");
-      return;
-    }
-
-    await supabase.auth.updateUser({ password: newPassword });
-
-    setPasswordMessage("Password updated successfully.");
-    setOldPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-  };
+  const isMember = membership && membership.membership_type !== "non_member";
 
   return (
     <div className="min-h-screen w-full bg-background text-text-base">
       {/* HEADER */}
       <section className="w-full border-b border-surfaceBorder bg-surface">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-2">
-          <UserIcon className="h-5 w-5" style={{ color: brand }} />
-          <h1 className="text-xl font-semibold tracking-tight">Edit Profile</h1>
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold tracking-tight">
+              Edit Driver Profile
+            </h1>
+          </div>
+
+          <Button
+            variant="secondary"
+            className="!py-1 !px-3 !text-xs !rounded-sm"
+            onClick={() =>
+              requestNavigate(`/${club.slug}/app/profile/drivers`)
+            }
+          >
+            Back
+          </Button>
         </div>
       </section>
 
       {/* MAIN */}
-      <main className="max-w-3xl mx-auto px-4 pt-6 pb-10 flex flex-col items-center">
+      <main className="max-w-3xl mx-auto px-4 py-10">
+        <EditDriverProfileCard
+          driver={driver}
+          update={update}
+          isMember={isMember}
+          brand={brand}
+          club={club}
+          navigate={navigate}
+          previewNumber={previewNumber}
+          setPreviewNumber={setPreviewNumber}
+          handleAvatarSelect={handleAvatarSelect}
+          handleRemoveAvatar={handleRemoveAvatar}
+          save={save}
+          deleteDriver={deleteDriver}
+        />
+      </main>
 
-        {/* FIXED CARD — BLUE HEADER FLUSH */}
-        <Card
-          className="w-full max-w-[500px] rounded-xl shadow-sm overflow-hidden !p-0 !pt-0"
-          style={{
-            border: `2px solid ${brand}`,
-            background: "white",
-            padding: 0, // override internal padding
-          }}
-        >
-          {/* BLUE HEADER BAR */}
-          <div
-            className="px-5 py-3"
-            style={{ background: brand, color: "white" }}
+      {/* UNSAVED CHANGES MODAL */}
+      {showPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <Card
+            className="p-6 space-y-4 bg-white max-w-sm w-full"
+            style={{ border: `2px solid ${brand}` }}
           >
-            <h2 className="text-base font-semibold">Account Details</h2>
-          </div>
+            <h3 className="text-lg font-semibold">Unsaved changes</h3>
+            <p className="text-sm text-gray-700">
+              You have unsaved changes. Save before leaving?
+            </p>
 
-          {/* CARD BODY */}
-          <div className="p-6 space-y-10">
-
-            {/* USER DETAILS */}
-            <section className="space-y-4">
-              <h3 className="text-sm font-semibold tracking-wide uppercase text-text-muted">
-                Profile Information
-              </h3>
-
-              <div className="space-y-4">
-                <Input label="First Name" value={firstName} readOnly />
-                <Input label="Last Name" value={lastName} readOnly />
-              </div>
-            </section>
-
-            {/* UPDATE EMAIL */}
-            <section className="space-y-4">
-              <h3 className="text-sm font-semibold tracking-wide uppercase text-text-muted">
-                Update Email
-              </h3>
-
-              <div className="space-y-4">
-                <Input
-                  label="Old Email"
-                  value={oldEmail}
-                  onChange={(e) => setOldEmail(e.target.value)}
-                />
-
-                <Input
-                  label="New Email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                />
-
-                <Input
-                  label="Current Password"
-                  type="password"
-                  value={emailPassword}
-                  onChange={(e) => setEmailPassword(e.target.value)}
-                />
-              </div>
-
-              {emailError && <p className="text-sm text-red-500">{emailError}</p>}
-              {emailMessage && (
-                <p className="text-sm text-green-600">{emailMessage}</p>
-              )}
-
-              <Button
-                variant="primary"
-                className="w-full !py-2.5 !text-sm"
-                onClick={handleUpdateEmail}
-              >
-                Update Email
-              </Button>
-            </section>
-
-            {/* CHANGE PASSWORD */}
-            <section className="space-y-4">
-              <h3 className="text-sm font-semibold tracking-wide uppercase text-text-muted">
-                Change Password
-              </h3>
-
-              <div className="space-y-4">
-                <Input
-                  label="Old Password"
-                  type="password"
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                />
-
-                <Input
-                  label="New Password"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                />
-
-                <Input
-                  label="Confirm New Password"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-              </div>
-
-              {passwordError && (
-                <p className="text-sm text-red-500">{passwordError}</p>
-              )}
-              {passwordMessage && (
-                <p className="text-sm text-green-600">{passwordMessage}</p>
-              )}
-
-              <Button
-                variant="primary"
-                className="w-full !py-2.5 !text-sm"
-                onClick={handleChangePassword}
-              >
-                Change Password
-              </Button>
-            </section>
-
-            {/* BACK TO PROFILE */}
-            <div className="pt-2 flex justify-center">
+            <div className="flex flex-col sm:flex-row gap-3">
               <Button
                 variant="secondary"
-                className="!py-2 !px-4 !text-sm"
-                onClick={() => navigate(`/${clubSlug}/app/profile`)}
+                className="w-full"
+                onClick={handleCancelPrompt}
               >
-                Back to Profile
+                Cancel
+              </Button>
+
+              <Button
+                variant="danger"
+                className="w-full"
+                onClick={handleDiscard}
+              >
+                Discard
+              </Button>
+
+              <Button
+                className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                onClick={handleConfirmSave}
+              >
+                Save
               </Button>
             </div>
-
-          </div>
-        </Card>
-      </main>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

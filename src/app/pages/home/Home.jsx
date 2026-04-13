@@ -27,7 +27,7 @@ import {
 export default function Home() {
   const { club, loadingClub } = useClub();
   const { profile } = useProfile();
-  const { membership } = useMembership();
+  const { membership, loadingMembership } = useMembership();
   const { drivers, loadingDrivers } = useDrivers();
 
   const navigate = useNavigate();
@@ -49,18 +49,26 @@ export default function Home() {
   const isAdmin = profile?.role === "admin";
 
   // ------------------------------------------------------------
-  // FIRST-TIME USER REDIRECT → ADD DRIVERS
+  // ⭐ SAFE FIRST-TIME USER REDIRECT (NO LOOPS)
   // ------------------------------------------------------------
   useEffect(() => {
     if (!clubSlug) return;
-    if (loadingDrivers) return;
-    if (!drivers) return;
+    if (loadingMembership) return;          // ⭐ wait for membership to finish loading
+    if (!membership?.id) return;            // ⭐ membership must be real
+    if (loadingDrivers) return;             // wait for drivers to load
+    if (!Array.isArray(drivers)) return;
 
-    // First login → no drivers → onboarding
     if (drivers.length === 0) {
       navigate(`/${clubSlug}/app/profile/drivers/welcome`, { replace: true });
     }
-  }, [clubSlug, loadingDrivers, drivers, navigate]);
+  }, [
+    clubSlug,
+    loadingMembership,   // ⭐ added
+    membership?.id,      // ⭐ added
+    loadingDrivers,
+    drivers,
+    navigate,
+  ]);
 
   // ------------------------------------------------------------
   // FETCH NEXT EVENT

@@ -93,8 +93,30 @@ export default function Login() {
       .ilike("email", userEmail)
       .maybeSingle();
 
-    // 5️⃣ IF MEMBERSHIP EXISTS → LINK USER
-    if (membership) {
+    // 5️⃣ IF NO MEMBERSHIP → CREATE ONE
+    if (!membership) {
+      const { data: newMembership, error: createError } = await supabase
+        .from("household_memberships")
+        .insert({
+          club_id: club.id,
+          email: userEmail,
+          user_id: userId,
+          membership_type: "non_member",
+          status: "active",
+          primary_first_name: user.user_metadata?.first_name || "",
+          primary_last_name: user.user_metadata?.last_name || "",
+        })
+        .select()
+        .single();
+
+      if (!createError && newMembership) {
+        await supabase
+          .from("profiles")
+          .update({ membership_id: newMembership.id })
+          .eq("id", userId);
+      }
+    } else {
+      // 6️⃣ MEMBERSHIP EXISTS → UPDATE IT
       await supabase
         .from("household_memberships")
         .update({
@@ -107,7 +129,7 @@ export default function Login() {
         })
         .eq("id", membership.id);
 
-      // 6️⃣ UPDATE PROFILE WITH MEMBERSHIP ID
+      // 7️⃣ UPDATE PROFILE WITH MEMBERSHIP ID
       await supabase
         .from("profiles")
         .update({
@@ -116,7 +138,7 @@ export default function Login() {
         .eq("id", userId);
     }
 
-    // 7️⃣ NAVIGATE INTO APP
+    // 8️⃣ NAVIGATE INTO APP
     navigate(`/${clubSlug}/app/`);
   }
 

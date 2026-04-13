@@ -1,89 +1,115 @@
 // src/app/pages/profile/DriverManager.jsx
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { supabase } from "@/supabaseClient";
 
 import { useDrivers } from "@/app/providers/DriverProvider";
 import { useMembership } from "@/app/providers/MembershipProvider";
 
+import DriverListCard from "@/components/driver/DriverListCard";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 
-import {
-  UserCircleIcon,
-  UserPlusIcon,
-  PencilSquareIcon,
-  TrashIcon,
-} from "@heroicons/react/24/solid";
+import { supabase } from "@/supabaseClient";
+import { UserPlusIcon, TrashIcon } from "@heroicons/react/24/solid";
 
 export default function DriverManager() {
   const navigate = useNavigate();
   const { club } = useOutletContext();
   const brand = club?.theme?.hero?.backgroundColor || "#0A66C2";
-
-  const { drivers, loadingDrivers, refreshDrivers } = useDrivers();
-  const { membership } = useMembership();
-
-  const [driverToDelete, setDriverToDelete] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-
   const clubSlug = club?.slug;
 
+  const { drivers, loadingDrivers } = useDrivers();
+  const { membership } = useMembership();
+
+  const driverList = Array.isArray(drivers) ? drivers : [];
+  const membershipType = membership?.membership_type;
+
+  // CLUB MEMBERS
+  const [clubMembers, setClubMembers] = useState([]);
+  const [loadingMembers, setLoadingMembers] = useState(true);
+
+  // DELETE MEMBER MODAL
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   // ------------------------------------------------------------
-  // FIRST-TIME ONBOARDING REDIRECT
+  // LOAD CLUB MEMBERS
   // ------------------------------------------------------------
   useEffect(() => {
-    if (loadingDrivers) return;
-    if (!drivers) return;
+    const loadMembers = async () => {
+      if (!membership || membershipType !== "family") {
+        setClubMembers([]);
+        setLoadingMembers(false);
+        return;
+      }
 
-    // If user has zero drivers → onboarding page
-    if (drivers.length === 0) {
-      navigate(`/${clubSlug}/app/profile/drivers/welcome`);
-    }
-  }, [loadingDrivers, drivers, clubSlug, navigate]);
+      const { data, error } = await supabase
+        .from("club_members")
+        .select("*")
+        .eq("membership_id", membership.id)
+        .order("first_name", { ascending: true });
+
+      if (!error && Array.isArray(data)) {
+        setClubMembers(data);
+      }
+
+      setLoadingMembers(false);
+    };
+
+    loadMembers();
+  }, [membership, membershipType]);
 
   // ------------------------------------------------------------
-  // MEMBERSHIP-BASED DRIVER LIMIT
+  // REDIRECT IF NO DRIVERS
+  // ------------------------------------------------------------
+  useEffect(() => {
+    if (!loadingDrivers) {
+      if (!driverList || driverList.length === 0) {
+        navigate(`/${clubSlug}/app/profile/drivers/welcome`, { replace: true });
+      }
+    }
+  }, [loadingDrivers, driverList, navigate, clubSlug]);
+
+  // ------------------------------------------------------------
+  // ADD DRIVER BUTTON VISIBILITY
   // ------------------------------------------------------------
   const canAddDriver = (() => {
-    if (!membership) return true;
-
-    const type = membership.membership_type;
-
-    if (type === "global_admin") return true;
-    if (type === "single") return drivers.length < 1;
-    if (type === "family") return drivers.length < 99;
-
-    return true;
+    if (!membershipType) return true;
+    if (membershipType === "family") return driverList.length < 99;
+    return driverList.length === 0;
   })();
 
-  const handleDeleteDriver = async (driverId) => {
-    setDeleting(true);
+  const showClubMembers = membershipType === "family";
 
-    const { error } = await supabase
-      .from("drivers")
-      .delete()
-      .eq("id", driverId);
+  // ------------------------------------------------------------
+  // DELETE MEMBER
+  // ------------------------------------------------------------
+  const confirmDeleteMember = async () => {
+    if (!memberToDelete) return;
 
-    setDeleting(false);
+    try {
+      setDeleting(true);
 
-    if (error) {
-      console.error("Delete driver error:", error);
-      alert("Failed to delete driver.");
-      return;
+      await supabase
+        .from("club_members")
+        .delete()
+        .eq("id", memberToDelete.id);
+
+      // Reload members
+      const { data } = await supabase
+        .from("club_members")
+        .select("*")
+        .eq("membership_id", membership.id)
+        .order("first_name", { ascending: true });
+
+      setClubMembers(data || []);
+    } finally {
+      setDeleting(false);
+      setShowDeleteModal(false);
+      setMemberToDelete(null);
     }
-
-    setDriverToDelete(null);
-    await refreshDrivers();
-  };
-
-  const handleAddDriver = () => {
-    navigate(`/${clubSlug}/app/profile/drivers/add`);
-  };
-
-  const handleEditDriver = (driverId) => {
-    navigate(`/${clubSlug}/app/profile/drivers/${driverId}/edit`);
   };
 
   return (
@@ -91,124 +117,191 @@ export default function DriverManager() {
 
       {/* HEADER */}
       <section className="w-full border-b border-surfaceBorder bg-surface">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-2">
-          <UserPlusIcon className="h-5 w-5" style={{ color: brand }} />
+        <div className="w-full mx-auto px-4 py-4 flex items-center gap-2">
+          <UserPlusIcon className="w-5 h-5" style={{ color: brand }} />
           <h1 className="text-xl font-semibold tracking-tight">Driver Manager</h1>
         </div>
       </section>
 
-      {/* MAIN */}
-      <main className="max-w-3xl mx-auto px-4 py-8 space-y-10">
+      {/* CENTERED CONTENT */}
+      <div className="w-full flex justify-center">
+        <main className="max-w-[720px] w-full px-4 py-10 flex flex-col gap-10">
 
-        {/* DRIVER LIST */}
-        <div className="space-y-4">
-          {loadingDrivers && (
-            <p className="text-gray-600">Loading drivers…</p>
-          )}
+          {/* DRIVERS */}
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Drivers</h2>
 
-          {/* DRIVER CARDS */}
-          {drivers.map((driver) => (
-            <Card
-              key={driver.id}
-              className="
-                p-4 
-                flex flex-col 
-                sm:flex-row sm:items-center sm:justify-between 
-                gap-4
-              "
-              style={{ border: `2px solid ${brand}` }}
-            >
-              <div className="flex items-center gap-4 w-full sm:w-auto">
-                {driver.profile?.avatar_url ? (
-                  <img
-                    src={driver.profile.avatar_url}
-                    alt="Driver Avatar"
-                    className="h-12 w-12 rounded-full object-cover border"
-                  />
-                ) : (
-                  <UserCircleIcon className="h-12 w-12 text-gray-400" />
+            {loadingDrivers && (
+              <p className="text-sm text-text-muted">Loading drivers…</p>
+            )}
+
+            {!loadingDrivers && driverList.length === 0 && (
+              <Card
+                className="p-4 text-sm text-text-muted"
+                style={{ border: `2px solid ${brand}` }}
+              >
+                No drivers yet.
+              </Card>
+            )}
+
+            <div className="flex flex-col gap-4 items-center">
+              {driverList.map((driver) => (
+                <DriverListCard
+                  key={driver.id}
+                  driver={driver}
+                  brand={brand}
+                  onEditProfile={() =>
+                    navigate(`/${clubSlug}/app/profile/drivers/${driver.id}/edit`)
+                  }
+                  onViewProfile={() =>
+                    navigate(`/${clubSlug}/app/profile/drivers/${driver.id}`)
+                  }
+                />
+              ))}
+            </div>
+
+            {canAddDriver && (
+              <Button
+                onClick={() =>
+                  navigate(`/${clubSlug}/app/profile/drivers/add`)
+                }
+                className="w-full !py-2.5 !text-sm"
+              >
+                Add Driver
+              </Button>
+            )}
+          </section>
+
+          {/* CLUB MEMBERS — FAMILY ONLY */}
+          {showClubMembers && (
+            <section className="space-y-4">
+              <h2 className="text-lg font-semibold">Club Members</h2>
+
+              {loadingMembers && (
+                <p className="text-sm text-text-muted">Loading members…</p>
+              )}
+
+              {!loadingMembers &&
+                clubMembers.filter((m) => m.driver_id === null).length === 0 && (
+                  <Card
+                    className="p-4 text-sm text-text-muted"
+                    style={{ border: `2px solid ${brand}` }}
+                  >
+                    No club members yet.
+                  </Card>
                 )}
 
-                <div className="flex flex-col">
-                  <p className="font-semibold">
-                    {driver.first_name} {driver.last_name}
-                  </p>
+              {!loadingMembers &&
+                clubMembers.filter((m) => m.driver_id === null).length > 0 && (
+                  <Card
+                    className="p-4 space-y-3"
+                    style={{ border: `2px solid ${brand}` }}
+                  >
+                    {clubMembers
+                      .filter((m) => m.driver_id === null)
+                      .map((m) => {
+                        const initials = `${m.first_name?.[0] || ""}${
+                          m.last_name?.[0] || ""
+                        }`.toUpperCase();
 
-                  {driver.is_junior && (
-                    <p className="text-xs text-blue-600 font-medium">
-                      Junior Driver
-                    </p>
-                  )}
-                </div>
-              </div>
+                        const bgColor = m.is_junior ? "#9CA3AF" : brand;
 
-              <div className="flex gap-3 w-full sm:w-auto">
-                <Button
-                  variant="secondary"
-                  onClick={() => handleEditDriver(driver.id)}
-                  className="flex items-center gap-1 w-full sm:w-auto justify-center"
-                >
-                  <PencilSquareIcon className="h-4 w-4" />
-                  Edit
-                </Button>
+                        return (
+                          <div
+                            key={m.id}
+                            className="text-sm flex items-center justify-between gap-3"
+                          >
+                            {/* LEFT: AVATAR + NAME */}
+                            <div className="flex items-center gap-3">
+                              <div
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: "50%",
+                                  backgroundColor: bgColor,
+                                  color: "white",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontSize: "0.8rem",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {initials}
+                              </div>
 
-                <Button
-                  variant="danger"
-                  onClick={() => setDriverToDelete(driver)}
-                  className="flex items-center gap-1 bg-red-600 text-white hover:bg-red-700 w-full sm:w-auto justify-center"
-                >
-                  <TrashIcon className="h-4 w-4" />
-                  Delete
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+                              <span>
+                                {m.first_name} {m.last_name}
+                                {m.is_junior && (
+                                  <span className="ml-2 text-xs text-blue-600">
+                                    (Junior)
+                                  </span>
+                                )}
+                                <span className="ml-2 text-xs text-gray-500">
+                                  (Member Only)
+                                </span>
+                              </span>
+                            </div>
 
-        {/* ADD DRIVER BUTTON (BOTTOM) */}
-        {drivers.length > 0 && canAddDriver && (
-          <Button
-            onClick={handleAddDriver}
-            className="w-full py-3 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Add Driver
-          </Button>
-        )}
+                            {/* RIGHT: DELETE BUTTON */}
+                            <Button
+  variant="danger"
+  className="!py-1 !px-3 !text-xs"
+  onClick={() => {
+    setMemberToDelete(m);
+    setShowDeleteModal(true);
+  }}
+>
+  Delete
+</Button>
+                          </div>
+                        );
+                      })}
+                  </Card>
+                )}
+            </section>
+          )}
 
-        {/* DELETE MODAL */}
-        {driverToDelete && (
+        </main>
+      </div>
+
+      {/* DELETE MEMBER MODAL */}
+      {showDeleteModal && memberToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <Card
-            className="p-6 space-y-4 bg-red-50"
+            className="p-6 space-y-4 bg-white max-w-sm w-full"
             style={{ border: `2px solid ${brand}` }}
           >
-            <h2 className="text-lg font-semibold text-red-700">Delete Driver</h2>
-
-            <p>
-              Are you sure you want to delete{" "}
-              <strong>
-                {driverToDelete.first_name} {driverToDelete.last_name}
-              </strong>
-              ?
+            <h3 className="text-lg font-semibold">Delete Member</h3>
+            <p className="text-sm text-gray-700">
+              Are you sure you want to delete this household member?
             </p>
 
-            <div className="flex gap-3">
-              <Button
-                className="bg-red-600 text-white hover:bg-red-700"
-                onClick={() => handleDeleteDriver(driverToDelete.id)}
-              >
-                {deleting ? "Deleting…" : "Delete"}
-              </Button>
-
+            <div className="flex flex-col sm:flex-row gap-3">
               <Button
                 variant="secondary"
-                onClick={() => setDriverToDelete(null)}
+                className="w-full"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setMemberToDelete(null);
+                }}
+                disabled={deleting}
               >
                 Cancel
               </Button>
+
+              <Button
+                variant="danger"
+                className="w-full"
+                onClick={confirmDeleteMember}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </Button>
             </div>
           </Card>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   );
 }

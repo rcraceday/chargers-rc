@@ -4,7 +4,7 @@ import { supabase } from "@/supabaseClient";
 import { useAuth } from "@/app/providers/AuthProvider";
 
 const ProfileContext = createContext({
-  user: null,              // ⭐ ADDED
+  user: null,
   profile: null,
   loadingProfile: true,
   refreshProfile: async () => {},
@@ -15,12 +15,12 @@ export function useProfile() {
 }
 
 export default function ProfileProvider({ children }) {
-  const { user, loadingUser } = useAuth();   // ⭐ AuthProvider user
+  const { user, loadingUser } = useAuth();
+
   const [profile, setProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
   async function loadProfile() {
-    // ⭐ Wait for AuthProvider hydration
     if (loadingUser) {
       setLoadingProfile(true);
       return;
@@ -35,11 +35,15 @@ export default function ProfileProvider({ children }) {
     setLoadingProfile(true);
 
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .maybeSingle();
+
+      if (error) {
+        console.error("ProfileProvider SELECT error:", error);
+      }
 
       if (data) {
         setProfile({
@@ -79,7 +83,7 @@ export default function ProfileProvider({ children }) {
         .single();
 
       if (insertError) {
-        console.error("ProfileProvider failed to create profile:", insertError);
+        console.error("ProfileProvider INSERT error:", insertError);
         setProfile(null);
         setLoadingProfile(false);
         return;
@@ -104,7 +108,7 @@ export default function ProfileProvider({ children }) {
   return (
     <ProfileContext.Provider
       value={{
-        user,              // ⭐ FIX — expose the real user
+        user,
         profile,
         loadingProfile,
         refreshProfile: loadProfile,

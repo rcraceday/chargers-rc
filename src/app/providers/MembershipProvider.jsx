@@ -10,6 +10,7 @@ import {
 } from "react";
 import { supabase } from "@/supabaseClient";
 import { useAuth } from "@/app/providers/AuthProvider";
+import { useClub } from "@/app/providers/ClubProvider";
 
 export const MembershipContext = createContext({
   membership: null,
@@ -23,29 +24,20 @@ export function useMembership() {
 
 export default function MembershipProvider({ children }) {
   const { user, loadingUser } = useAuth();
+  const { club } = useClub();
 
   const [membership, setMembership] = useState(null);
   const [loadingMembership, setLoadingMembership] = useState(true);
 
   const inFlightRef = useRef(false);
 
-  // Freeze during USER_UPDATED
-  const lastAuthEvent = supabase.auth._state?.event;
-
   const loadMembership = useCallback(async () => {
-    console.debug("MembershipProvider.loadMembership start", {
-      userId: user?.id,
-      clubId: user?.club_id,
-    });
+    if (inFlightRef.current) return;
 
-    if (lastAuthEvent === "USER_UPDATED") {
-      console.debug(
-        "[MembershipProvider] freeze — USER_UPDATED in progress, skipping reload"
-      );
+    if (loadingUser || !club?.id) {
+      setLoadingMembership(true);
       return;
     }
-
-    if (inFlightRef.current) return;
 
     if (!user?.id) {
       setMembership(null);
@@ -61,13 +53,24 @@ export default function MembershipProvider({ children }) {
         .from("household_memberships")
         .select("*")
         .eq("user_id", user.id)
+        .eq("club_id", club.id)        // REQUIRED
+        .eq("status", "active")        // REQUIRED
         .maybeSingle();
 
       if (error) {
         console.warn("[MembershipProvider] select error", error);
         setMembership(null);
       } else {
-        setMembership(data || null);
+        const row = data || null;
+
+        // ⭐ ADD: computed membership flag (non-breaking)
+        const isMember =
+          row &&
+          row.membership_type &&
+          row.membership_type !== "non_member";
+
+        // ⭐ Preserve the row so Driver Manager still works
+        setMembership(row ? { ...row, isMember } : null);
       }
     } catch (err) {
       console.error("[MembershipProvider] loadMembership caught", err);
@@ -76,20 +79,13 @@ export default function MembershipProvider({ children }) {
       inFlightRef.current = false;
       setLoadingMembership(false);
     }
-  }, [user?.id, user?.club_id, lastAuthEvent]);
+  }, [user?.id, loadingUser, club?.id]);
 
-  // Trigger reload when user or club changes
   useEffect(() => {
-    if (loadingUser) return;
-
-    if (!user?.id) {
-      setMembership(null);
-      setLoadingMembership(false);
-      return;
+    if (!loadingUser && user?.id && club?.id) {
+      loadMembership();
     }
-
-    loadMembership();
-  }, [user?.id, user?.club_id, loadingUser, loadMembership]);
+  }, [loadingUser, user?.id, club?.id, loadMembership]);
 
   return (
     <MembershipContext.Provider

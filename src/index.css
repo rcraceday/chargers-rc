@@ -247,9 +247,14 @@ html, body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  font-family: var(--site-font), sans-serif;
-}
+  font-family:
+  'Poppins',
+  "Segoe UI Emoji",
+  "Apple Color Emoji",
+  "Noto Color Emoji",
+  sans-serif;
 
+}
 
 /* ===========================
    GLOBAL LINK RESET
@@ -285,14 +290,14 @@ a:hover {
 .desktop-dropdown {
   position: absolute;
   top: 100%;
-  right: 0;
+  left: 0; /* left-align under trigger */
   width: 220px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.12);
   opacity: 0;
   pointer-events: none;
-  transform: translateY(6px);
+  transform: translateY(6px); /* only vertical movement */
   transition: opacity 0.15s ease, transform 0.15s ease;
   z-index: 50;
 }
@@ -300,7 +305,7 @@ a:hover {
 .desktop-dropdown.open {
   opacity: 1;
   pointer-events: auto;
-  transform: translateY(0);
+  transform: translateY(0); /* open state */
 }
 
 .desktop-dropdown nav a {
@@ -381,6 +386,7 @@ a:hover {
   display: block !important;
   text-align: left !important;
 }
+
 .member-badge {
   width: 192px;   /* desktop size */
   height: 192px;
@@ -392,6 +398,7 @@ a:hover {
     height: 120px;
   }
 }
+
 /* Desktop default — top right */
 .member-badge {
   width: 192px;

@@ -1,210 +1,109 @@
+// src/app/pages/profile/DriverProfile.jsx
+
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 
+import DriverProfileCard from "@/components/driver/DriverProfileCard";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import Badge from "@/components/ui/Badge";
 
-import useProfile from "@app/hooks/useProfile";
-import { COUNTRIES } from "@/data/countries";
+import { IdentificationIcon, ArrowLeftIcon } from "@heroicons/react/24/solid";
+import { useMembership } from "@/app/providers/MembershipProvider";
 
 export default function DriverProfile() {
   const { id, clubSlug } = useParams();
   const navigate = useNavigate();
-  const { membership, user } = useProfile();
 
-  const [loading, setLoading] = useState(true);
-  const [driver, setDriver] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [error, setError] = useState("");
+  const { club } = useOutletContext();
+  const brand = club?.theme?.hero?.backgroundColor || "#0A66C2";
 
-  const isOwner =
+  const { membership } = useMembership();
+  const isMember =
     membership &&
-    driver &&
-    driver.membership_id === membership.id;
+    membership.membership_type &&
+    membership.membership_type !== "non_member";
 
-  // Non-members cannot view driver profiles
-  const isMember = Boolean(membership);
+  const [driver, setDriver] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-
-      const { data, error } = await supabase
+    async function load() {
+      const { data } = await supabase
         .from("drivers")
-        .select(`
-          id,
-          membership_id,
-          first_name,
-          last_name,
-          is_junior,
-          driver_profiles (
-            nickname,
-            team_name,
-            country_code,
-            avatar_url,
-            about,
-            sponsors,
-            visible_in_directory,
-            manufacturer
-          )
-        `)
+        .select("*")
         .eq("id", id)
         .single();
 
-      if (error || !data) {
-        setError("Driver not found.");
-        setLoading(false);
-        return;
-      }
-
-      const p = data.driver_profiles?.[0];
-
       setDriver(data);
-      setProfile(p);
       setLoading(false);
-    };
+    }
 
     load();
   }, [id]);
 
-  // Access control
-  if (!loading) {
-    if (!isMember) {
-      return (
-        <div className="p-4 max-w-xl mx-auto">
-          <Card className="p-6 text-center space-y-4">
-            <h2 className="text-xl font-semibold">Members Only</h2>
-            <p className="text-gray-600">
-              Driver profiles are only visible to club members.
-            </p>
-            <Button onClick={() => navigate(`/${clubSlug}/profile/drivers`)}>
-              Back to My Drivers
-            </Button>
-          </Card>
-        </div>
-      );
-    }
-
-    if (profile && !profile.visible_in_directory && !isOwner) {
-      return (
-        <div className="p-4 max-w-xl mx-auto">
-          <Card className="p-6 text-center space-y-4">
-            <h2 className="text-xl font-semibold">Driver Hidden</h2>
-            <p className="text-gray-600">
-              This driver is not visible in the directory.
-            </p>
-            <Button onClick={() => navigate(`/${clubSlug}/profile/drivers`)}>
-              Back to My Drivers
-            </Button>
-          </Card>
-        </div>
-      );
-    }
+  if (loading) {
+    return (
+      <div className="p-4 max-w-xl mx-auto">
+        <p className="text-gray-600">Loading driver…</p>
+      </div>
+    );
   }
 
-  if (loading) return <div className="p-4">Loading driver…</div>;
-  if (error) return <div className="p-4">{error}</div>;
-
-  const country = COUNTRIES.find((c) => c.code === profile?.country_code);
+  if (!driver) {
+    return (
+      <div className="p-4 max-w-xl mx-auto">
+        <Card
+          className="p-6 text-center space-y-4"
+          style={{ border: `2px solid ${brand}` }}
+        >
+          <h2 className="text-xl font-semibold">Driver Not Found</h2>
+          <Button onClick={() => navigate(`/${clubSlug}/app/profile/drivers`)}>
+            Back to Drivers
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 max-w-3xl mx-auto space-y-8">
+    <div className="min-h-screen w-full bg-background text-text-base">
 
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">
-          Driver Profile
-        </h1>
+      {/* PAGE HEADER */}
+      <section className="w-full border-b border-surfaceBorder bg-surface">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
 
-        {isOwner && (
+          {/* LEFT: Heading */}
+          <div className="flex items-center gap-2">
+            <IdentificationIcon className="h-5 w-5" style={{ color: brand }} />
+            <h1 className="text-xl font-semibold tracking-tight">
+              Driver Profile
+            </h1>
+          </div>
+
+          {/* RIGHT: Small Back Button */}
           <Button
             variant="secondary"
+            className="!py-1 !px-3 !text-xs !rounded-sm flex items-center gap-1"
             onClick={() =>
-              navigate(`/${clubSlug}/profile/drivers/${id}/edit`)
+              navigate(`/${clubSlug}/app/profile/drivers/${id}/edit`)
             }
           >
-            Edit
+            <ArrowLeftIcon className="h-3 w-3" />
+            Back
           </Button>
-        )}
-      </div>
-
-      {/* Avatar + Name */}
-      <div className="flex flex-col items-center text-center space-y-4">
-        <img
-          src={profile.avatar_url || "/default-avatar.png"}
-          alt="Avatar"
-          className="w-32 h-32 rounded-full object-cover border"
-        />
-
-        <div>
-          <h2 className="text-2xl font-semibold">
-            {driver.first_name} {driver.last_name}
-          </h2>
-
-          {profile.nickname && (
-            <p className="text-gray-600 text-lg">“{profile.nickname}”</p>
-          )}
-
-          {country && (
-            <p className="text-gray-500 text-sm">
-              {country.flag} {country.name}
-            </p>
-          )}
         </div>
-      </div>
+      </section>
 
-      {/* Team / Manufacturer */}
-      {(profile.team_name || profile.manufacturer) && (
-        <Card className="p-6 space-y-2">
-          {profile.team_name && (
-            <p className="text-gray-800">
-              <span className="font-semibold">Team:</span> {profile.team_name}
-            </p>
-          )}
-
-          {profile.manufacturer && (
-            <p className="text-gray-800">
-              <span className="font-semibold">Manufacturer:</span>{" "}
-              {profile.manufacturer}
-            </p>
-          )}
-        </Card>
-      )}
-
-      {/* Sponsors */}
-      {profile.sponsors?.length > 0 && (
-        <Card className="p-6 space-y-4">
-          <h3 className="text-lg font-semibold">Sponsors</h3>
-          <div className="flex flex-wrap gap-2">
-            {profile.sponsors.map((s) => (
-              <Badge key={s} variant="blue">
-                {s}
-              </Badge>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* About */}
-      {profile.about && (
-        <Card className="p-6 space-y-4">
-          <h3 className="text-lg font-semibold">About</h3>
-          <p className="text-gray-700 whitespace-pre-line">
-            {profile.about}
-          </p>
-        </Card>
-      )}
-
-      {/* Social Links */}
-      <Card className="p-6 space-y-4">
-        <h3 className="text-lg font-semibold">Social</h3>
-
-        <p className="text-gray-500 text-sm">
-          Social links coming soon.
-        </p>
-      </Card>
+      {/* MAIN CONTENT */}
+      <main className="max-w-3xl mx-auto px-4 py-10">
+        <DriverProfileCard
+          driver={driver}
+          club={club}
+          isMember={isMember}
+          navigate={navigate}
+        />
+      </main>
     </div>
   );
 }

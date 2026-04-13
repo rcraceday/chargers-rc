@@ -1,315 +1,172 @@
-// src/components/driver/DriverProfileCard.jsx
+// src/app/components/driver/DriverProfileCard.jsx
 
-import Input from "@/components/ui/Input";
-import {
-  UserCircleIcon,
-  PhotoIcon,
-} from "@heroicons/react/24/solid";
+import React from "react";
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
 
-export default function DriverProfileCard(props) {
-  const {
-    driver,
-    update,
-    isMember,
-    brand,
-    navigate,
-    club,
-    primaryColor,
-    secondaryColor,
-    previewNumber,
-    handleAvatarSelect,
-    handleRemoveAvatar,
-  } = props;
+import { MANUFACTURERS } from "@/data/manufacturers";
+import { COUNTRIES } from "@/data/countries";
 
-  if (!driver) return null;
+import AvatarSection from "./DriverProfileCard/sections/AvatarSection";
+import IdentitySection from "./DriverProfileCard/sections/IdentitySection";
+import NumberNicknameSection from "./DriverProfileCard/sections/NumberNicknameSection";
+import TeamChassisTrackSection from "./DriverProfileCard/sections/TeamChassisTrackSection";
+import SponsorsSection from "./DriverProfileCard/sections/SponsorsSection";
+
+import PersonalDetailsSection from "./DriverProfileCard/sections/PersonalDetailsSection";
+import RacingInformationSection from "./DriverProfileCard/sections/RacingInformationSection";
+import SicCarProfileSection from "./DriverProfileCard/sections/SicCarProfileSection";
+import DirtCarProfileSection from "./DriverProfileCard/sections/DirtCarProfileSection";
+import ExperienceSection from "./DriverProfileCard/sections/ExperienceSection";
+import TriviaSection from "./DriverProfileCard/sections/TriviaSection";
+
+import MobileLayout from "./DriverProfileCard/sections/MobileLayout";
+import SectionWrapper from "./DriverProfileCard/sections/SectionWrapper";
+
+export default function DriverProfileCard({ driver, club, isMember, navigate }) {
+  if (!driver || !club) return null;
+
+  const brand = club?.theme?.hero?.backgroundColor || "#0A66C2";
+  const country = COUNTRIES.find((c) => c.name === driver.country);
+  const chassis = MANUFACTURERS.find((m) => m.name === driver.chassis_manufacturer);
 
   return (
-    <div
-      style={{
-        border: `2px solid ${brand}`,
-        borderRadius: "14px",
-        overflow: "hidden",
-        backgroundColor: "white",
-      }}
-    >
-      {/* HEADER */}
+    <div className="relative">
+
+      {/* GREYED OUT CARD WHEN NOT MEMBER */}
       <div
-        style={{
-          backgroundColor: brand,
-          color: "white",
-          padding: "20px 24px",
-          fontWeight: 600,
-          fontSize: "1.1rem",
-        }}
+        className={!isMember ? "opacity-40 pointer-events-none" : ""}
+        style={!isMember ? { filter: "grayscale(100%)" } : {}}
       >
-        Full Driver Profile
-      </div>
-
-      {/* CONTENT */}
-      <div style={{ padding: "24px" }}>
-
-        {/* ------------------------------------------------------------
-           AVATAR
-        ------------------------------------------------------------ */}
-        <div style={{ marginBottom: "32px" }}>
+        <Card
+          className="w-full rounded-xl shadow-sm overflow-hidden !p-0 !pt-0 bg-white"
+          style={{ border: `2px solid ${brand}` }}
+        >
+          {/* HEADER */}
           <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "16px",
-            }}
+            className="px-5 py-3"
+            style={{ background: brand, color: "white" }}
           >
-            {driver.avatar_url ? (
-              <img
-                src={driver.avatar_url}
-                alt="Avatar"
-                style={{
-                  height: "128px",
-                  width: "128px",
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  border: "2px solid #ddd",
-                }}
-              />
-            ) : (
-              <UserCircleIcon style={{ height: "128px", width: "128px", color: "#ccc" }} />
-            )}
-
-            {isMember && (
-              <>
-                <label
-                  style={{
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    fontWeight: 500,
-                    color: brand,
-                  }}
-                >
-                  <PhotoIcon style={{ height: "20px", width: "20px" }} />
-                  Change Photo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    style={{ display: "none" }}
-                    onChange={handleAvatarSelect}
-                  />
-                </label>
-
-                {driver.avatar_url && (
-                  <button
-                    onClick={handleRemoveAvatar}
-                    style={{
-                      color: "red",
-                      fontSize: "14px",
-                      fontWeight: 500,
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Remove Photo
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* ------------------------------------------------------------
-           IDENTITY
-        ------------------------------------------------------------ */}
-        <div style={{ marginBottom: "32px" }}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full min-w-0">
-
-            <div className="min-w-0">
-              <Input
-                label="Nickname"
-                value={driver.nickname || ""}
-                onChange={(e) => update("nickname", e.target.value)}
-              />
-            </div>
-
-            <div className="min-w-0">
-              <Input
-                label="Team Name"
-                value={driver.team_name || ""}
-                onChange={(e) => update("team_name", e.target.value)}
-              />
-            </div>
-
-            <div className="min-w-0">
-              <Input
-                label="Home Track"
-                value={driver.home_track || ""}
-                onChange={(e) => update("home_track", e.target.value)}
-              />
-            </div>
+            <h2 className="text-base font-semibold">Driver Profile</h2>
           </div>
 
-          {/* Permanent Number */}
-          <div style={{ marginTop: "24px" }}>
-            <label style={{ fontSize: "14px", fontWeight: 600 }}>Permanent Number</label>
+          {/* BODY */}
+          <div className="p-6 space-y-10">
 
-            <div
-              style={{
-                marginTop: "8px",
-                padding: "16px",
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "12px",
-                minWidth: 0,
-              }}
-            >
-              <span style={{ fontSize: "20px", fontWeight: 600 }}>
-                {previewNumber || "None"}
-              </span>
-
-              {isMember && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate(
-                      `/${club.slug}/app/profile/drivers/${driver.id}/choose-number`
-                    )
-                  }
-                  style={{
-                    backgroundColor: brand,
-                    color: "white",
-                    padding: "8px 16px",
-                    borderRadius: "6px",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: "14px",
-                    fontWeight: 500,
-                  }}
-                >
-                  Change Number
-                </button>
-              )}
+            {/* DESKTOP HEADER AREA */}
+            <div className="hidden md:grid md:grid-cols-12 md:gap-6">
+              <AvatarSection driver={driver} country={country} />
+              <NumberNicknameSection driver={driver} brand={brand} />
+              <div className="col-span-6 space-y-4">
+                <IdentitySection driver={driver} />
+                <TeamChassisTrackSection driver={driver} chassis={chassis} />
+                <SponsorsSection driver={driver} brand={brand} />
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* ------------------------------------------------------------
-           CAR COLOURS
-        ------------------------------------------------------------ */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 w-full min-w-0">
-
-          {/* COLOUR PICKERS */}
-          <div className="min-w-0" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <h3 style={{ fontSize: "14px", fontWeight: 600 }}>Car Colours</h3>
-
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <label style={{ width: "120px", fontSize: "14px", fontWeight: 500 }}>
-                Primary Colour
-              </label>
-              <input
-                type="color"
-                value={primaryColor}
-                onChange={(e) => update("primary_color", e.target.value)}
-                disabled={!isMember}
-                style={{
-                  width: "48px",
-                  height: "32px",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                }}
+            {/* MOBILE HEADER AREA */}
+            <div className="md:hidden">
+              <MobileLayout
+                driver={driver}
+                country={country}
+                brand={brand}
+                chassis={chassis}
               />
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <label style={{ width: "120px", fontSize: "14px", fontWeight: 500 }}>
-                Secondary Colour
-              </label>
-              <input
-                type="color"
-                value={secondaryColor}
-                onChange={(e) => update("secondary_color", e.target.value)}
-                disabled={!isMember}
-                style={{
-                  width: "48px",
-                  height: "32px",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                }}
-              />
+            {/* MOBILE STACKED SECTIONS */}
+            <div className="md:hidden space-y-10">
+              <PersonalDetailsSection driver={driver} />
+              <RacingInformationSection driver={driver} chassis={chassis} />
+              <SicCarProfileSection driver={driver} />
+              <DirtCarProfileSection driver={driver} />
+              <ExperienceSection driver={driver} />
+              <TriviaSection driver={driver} />
             </div>
-          </div>
 
-          {/* PREVIEW */}
-          <div className="min-w-0" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <h3 style={{ fontSize: "14px", fontWeight: 600 }}>LiveTime Preview</h3>
+            {/* DESKTOP TWO-ROW LAYOUT */}
+            <div className="hidden md:grid md:grid-cols-12 md:gap-6">
+              <div className="col-span-6">
+                <SectionWrapper title="Personal Details" brand={brand}>
+                  <PersonalDetailsSection driver={driver} />
+                </SectionWrapper>
+              </div>
 
-            <div
-              style={{
-                width: "100px",
-                height: "100px",
-                backgroundColor: primaryColor,
-                border: `4px solid ${secondaryColor}`,
-                borderRadius: "12px",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <span
-                style={{
-                  color: secondaryColor,
-                  fontWeight: "bold",
-                  fontSize: "36px",
-                  lineHeight: 1,
-                }}
-              >
-                {previewNumber}
-              </span>
+              <div className="col-span-6">
+                <SectionWrapper title="Racing Information" brand={brand}>
+                  <RacingInformationSection driver={driver} chassis={chassis} />
+                </SectionWrapper>
+              </div>
+
+              <div className="col-span-6">
+                <SectionWrapper title="SIC Car Profile" brand={brand}>
+                  <SicCarProfileSection driver={driver} />
+                </SectionWrapper>
+              </div>
+
+              <div className="col-span-6">
+                <SectionWrapper title="Dirt Car Profile" brand={brand}>
+                  <DirtCarProfileSection driver={driver} />
+                </SectionWrapper>
+              </div>
+
+              <div className="col-span-6">
+                <SectionWrapper title="Experience & Preferences" brand={brand}>
+                  <ExperienceSection driver={driver} />
+                </SectionWrapper>
+              </div>
+
+              <div className="col-span-6">
+                <SectionWrapper title="Fun / Trivia" brand={brand}>
+                  <TriviaSection driver={driver} />
+                </SectionWrapper>
+              </div>
             </div>
+
           </div>
-        </div>
-
-        {/* ------------------------------------------------------------
-           ABOUT & SPONSORS
-        ------------------------------------------------------------ */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-          <h3 style={{ fontSize: "14px", fontWeight: 600 }}>About</h3>
-
-          <textarea
-            value={driver.about || ""}
-            onChange={(e) => update("about", e.target.value)}
-            rows={4}
-            disabled={!isMember}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              border: "1px solid #ccc",
-              borderRadius: "6px",
-              padding: "12px",
-              fontSize: "14px",
-              resize: "vertical",
-            }}
-          />
-
-          <h3 style={{ fontSize: "14px", fontWeight: 600 }}>Sponsors</h3>
-
-          <Input
-            label="Sponsors (comma separated)"
-            value={(driver.sponsors || []).join(", ")}
-            onChange={(e) =>
-              update(
-                "sponsors",
-                e.target.value.split(",").map((s) => s.trim())
-              )
-            }
-            disabled={!isMember}
-          />
-        </div>
+        </Card>
       </div>
+
+      {/* MEMBERSHIP OVERLAY */}
+      {!isMember && (
+        <div className="absolute inset-0 flex items-center justify-center px-4">
+          <Card
+            className="p-8 max-w-md text-center space-y-6"
+            style={{ border: `2px solid ${brand}`, background: "white" }}
+          >
+            <h3 className="text-lg font-semibold" style={{ color: brand }}>
+              Members Only Feature
+            </h3>
+
+            <p className="text-sm text-gray-700">
+              Become a club member to unlock full driver profiles and enjoy these benefits:
+            </p>
+
+            <ul className="text-sm text-gray-700 space-y-1 text-left mx-auto w-fit">
+              <li>50% off race fees</li>
+              <li>Insurance coverage</li>
+              <li>Junior members race free</li>
+              <li>Access to RCRA sanctioned events</li>
+              <li>Helps increase the club’s profile for council and government investment</li>
+              <li>Voting rights at AGM</li>
+            </ul>
+
+            <Button
+              className="w-full bg-blue-600 text-white hover:bg-blue-700"
+              onClick={() => navigate(`/${club.slug}/app/membership`)}
+            >
+              Join Membership
+            </Button>
+
+            <Button
+              className="w-full bg-gray-200 text-gray-700 hover:bg-gray-300"
+              onClick={() => navigate(`/${club.slug}/app/profile/drivers`)}
+            >
+              Return to Drivers
+            </Button>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

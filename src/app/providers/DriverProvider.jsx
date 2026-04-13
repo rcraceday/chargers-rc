@@ -17,6 +17,7 @@ export const DriverContext = createContext({
   drivers: [],
   loadingDrivers: true,
   refreshDrivers: async () => {},
+  deleteDriver: async () => {},
 });
 
 export function useDrivers() {
@@ -31,181 +32,212 @@ export default function DriverProvider({ children }) {
   const [loadingDrivers, setLoadingDrivers] = useState(true);
 
   const inFlightRef = useRef(false);
-  const watchdogRef = useRef(null);
-
-  const clearWatchdog = () => {
-    if (watchdogRef.current) {
-      clearTimeout(watchdogRef.current);
-      watchdogRef.current = null;
-    }
-  };
 
   const loadDrivers = useCallback(async () => {
-    console.debug("[DriverProvider] loadDrivers called");
+    if (inFlightRef.current) return;
+    if (loadingUser || loadingMembership) return;
 
-    if (inFlightRef.current) {
-      console.debug("[DriverProvider] loadDrivers skipped — already in flight");
-      return;
-    }
-
-    if (
-      typeof loadingUser !== "boolean" ||
-      typeof loadingMembership !== "boolean"
-    ) {
-      console.debug("[DriverProvider] loadDrivers deferred — loading flags not boolean");
-      return;
-    }
-
-    if (loadingUser || loadingMembership) {
-      console.debug("[DriverProvider] loadDrivers deferred — still loading");
+    if (!user?.id) {
+      setDrivers([]);
+      setLoadingDrivers(false);
       return;
     }
 
     if (!membership) {
-      console.debug("[DriverProvider] membership temporarily undefined — skipping load");
+      setDrivers([]);
+      setLoadingDrivers(false);
       return;
     }
 
-    if (!membership.id) {
-      console.debug("[DriverProvider] membership exists but has no id — clearing drivers");
+    const membershipId = membership.id;
+    const membershipType = membership.membership_type;
+    const clubId = membership.club_id;
+
+    if (!clubId) {
+      console.warn("[DriverProvider] membership missing club_id");
       setDrivers([]);
       setLoadingDrivers(false);
       return;
     }
 
     inFlightRef.current = true;
-    clearWatchdog();
-    watchdogRef.current = setTimeout(() => {
-      console.warn("[DriverProvider] watchdog: clearing inFlightRef after timeout");
-      inFlightRef.current = false;
-      watchdogRef.current = null;
-    }, 30000);
-
-    console.debug("[DriverProvider] loadDrivers start", {
-      userId: user?.id,
-      membershipId: membership?.id,
-      membershipType: membership?.membership_type,
-      clubId: membership?.club_id,
-    });
-
     setLoadingDrivers(true);
 
     try {
       let response;
 
-      // ------------------------------------------------------------
-      // GLOBAL ADMIN — LOAD ALL DRIVERS IN CLUB
-      // ------------------------------------------------------------
-      if (membership.membership_type === "global_admin") {
+      if (membershipType === "global_admin") {
         response = await supabase
           .from("drivers")
           .select("*")
-          .eq("club_id", membership.club_id)
+          .eq("club_id", clubId)
           .order("created_at", { ascending: true });
-
-        console.debug("[DriverProvider] global admin load — by club_id", {
-          clubId: membership.club_id,
-          status: response.status,
-          error: response.error,
-          rows: response.data?.length || 0,
-        });
-      }
-
-      // ------------------------------------------------------------
-      // NORMAL USER — LOAD BY membership_id
-      // ------------------------------------------------------------
-      else {
+      } else if (membershipType === "non_member") {
         response = await supabase
           .from("drivers")
           .select("*")
-          .eq("membership_id", membership.id)
+          .eq("club_id", clubId)
+          .is("membership_id", null)
+          .eq("created_by", user.id)
           .order("created_at", { ascending: true });
-
-        console.debug("[DriverProvider] normal load — by membership_id", {
-          membershipId: membership.id,
-          status: response.status,
-          error: response.error,
-          rows: response.data?.length || 0,
-        });
+      } else {
+        response = await supabase
+          .from("drivers")
+          .select("*")
+          .eq("membership_id", membershipId)
+          .order("created_at", { ascending: true });
       }
 
       if (response.error) {
-        console.warn("[DriverProvider] supabase returned error", response.error);
+        console.warn("[DriverProvider] supabase error", response.error);
         setDrivers([]);
       } else {
         setDrivers(response.data || []);
-        console.debug("[DriverProvider] drivers state", response.data);
       }
     } catch (err) {
       console.error("[DriverProvider] loadDrivers caught", err);
       setDrivers([]);
     } finally {
-      setLoadingDrivers(false);
       inFlightRef.current = false;
-      clearWatchdog();
-      console.debug("[DriverProvider] loadDrivers finished", {
-        loadingDrivers: false,
-      });
+      setLoadingDrivers(false);
     }
   }, [
-    membership,
+    user?.id,
+    loadingUser,
+    loadingMembership,
+    membership?.id,
+    membership?.membership_type,
+    membership?.club_id,
+  ]);
+
+  // ⭐ UPDATED — DELETE DRIVER (convert club_members → member-only)
+  const deleteDriver = useCallback(
+    async (driverId) => {
+      if (!driverId) return;
+
+      // 1. Delete driver
+      const { error: driverError } = await supabase
+        .from("drivers")
+        .delete()
+        .eq("id", driverId);
+
+      if (driverError) {
+        console.error("[DriverProvider] delete driver error", driverError);
+        throw driverError;
+      }
+
+      // 2. Convert any linked club_members rows to "member-only"
+      //    - Keep first_name, last_name, is_junior as-is
+      //    - Only null out driver_id
+      const { error: memberError } = await supabase
+        .from("club_members")
+        .update({ driver_id: null })
+        .eq("driver_id", driverId);
+
+      if (memberError) {
+        console.warn(
+          "[DriverProvider] convert club_member to member-only error",
+          memberError
+        );
+        // Not fatal — driver is already deleted
+      }
+
+      await loadDrivers();
+    },
+    [loadDrivers]
+  );
+
+  // Load drivers when membership becomes available
+  useEffect(() => {
+    if (!loadingUser && !loadingMembership && membership) {
+      loadDrivers();
+    }
+  }, [
+    loadingUser,
+    loadingMembership,
+    membership?.id,
+    membership?.membership_type,
+    membership?.club_id,
+    loadDrivers,
+  ]);
+
+  // Realtime subscriptions
+  useEffect(() => {
+    if (loadingUser || loadingMembership || !membership) return;
+
+    const membershipId = membership.id;
+    const membershipType = membership.membership_type;
+    const clubId = membership.club_id;
+
+    if (!clubId) return;
+
+    let channel;
+
+    if (membershipType === "global_admin") {
+      channel = supabase
+        .channel("drivers-global-admin")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "drivers",
+            filter: `club_id=eq.${clubId}`,
+          },
+          () => loadDrivers()
+        )
+        .subscribe();
+    } else if (membershipType === "non_member") {
+      channel = supabase
+        .channel("drivers-nonmember")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "drivers",
+            filter: `created_by=eq.${user.id}`,
+          },
+          () => loadDrivers()
+        )
+        .subscribe();
+    } else {
+      channel = supabase
+        .channel("drivers-member")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "drivers",
+            filter: `membership_id=eq.${membershipId}`,
+          },
+          () => loadDrivers()
+        )
+        .subscribe();
+    }
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [
+    loadingUser,
+    loadingMembership,
     membership?.id,
     membership?.membership_type,
     membership?.club_id,
     user?.id,
-    loadingUser,
-    loadingMembership,
-  ]);
-
-  // ------------------------------------------------------------
-  // EFFECT: TRIGGER LOAD WHEN MEMBERSHIP OR USER CHANGES
-  // ------------------------------------------------------------
-  useEffect(() => {
-    if (
-      typeof loadingUser !== "boolean" ||
-      typeof loadingMembership !== "boolean"
-    ) {
-      return;
-    }
-
-    if (loadingUser || loadingMembership) {
-      return;
-    }
-
-    if (!membership) {
-      return;
-    }
-
-    if (!membership.id) {
-      setDrivers([]);
-      setLoadingDrivers(false);
-      return;
-    }
-
-    (async () => {
-      try {
-        await loadDrivers();
-      } catch (err) {
-        console.error("[DriverProvider] loadDrivers invocation error", err);
-      }
-    })();
-  }, [
-    membership,
-    membership?.id,
-    membership?.membership_type,
-    membership?.club_id,
-    loadingUser,
-    loadingMembership,
     loadDrivers,
   ]);
 
-  if (!user || loadingUser || loadingMembership) {
-    return children;
-  }
-
   return (
     <DriverContext.Provider
-      value={{ drivers, loadingDrivers, refreshDrivers: loadDrivers }}
+      value={{
+        drivers,
+        loadingDrivers,
+        refreshDrivers: loadDrivers,
+        deleteDriver,
+      }}
     >
       {children}
     </DriverContext.Provider>

@@ -1,6 +1,4 @@
 // src/app/providers/AuthProvider.jsx
-// FINAL FIXED VERSION — production safe, no hydration stalls
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/supabaseClient";
 
@@ -12,52 +10,19 @@ export function useAuth() {
 
 export default function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [signupEmail, setSignupEmail] = useState("");
 
-  /* ------------------------------------------------------------
-     Load profile
-     ------------------------------------------------------------ */
-  async function loadProfile(userId) {
-    if (!userId) {
-      setProfile(null);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (error) {
-      console.error(">>> loadProfile error", error);
-      setProfile(null);
-      return;
-    }
-
-    setProfile(data || null);
-  }
-
-  /* ------------------------------------------------------------
-     Handle session
-     ------------------------------------------------------------ */
+  // ------------------------------------------------------------
+  // Handle session (NO profile loading here)
+  // ------------------------------------------------------------
   async function handleSession(newSession) {
     setSession(newSession);
-
-    const user = newSession?.user ?? null;
-
-    if (user?.id) {
-      await loadProfile(user.id);
-    } else {
-      setProfile(null);
-    }
   }
 
-  /* ------------------------------------------------------------
-     Mount: ONE getSession call
-     ------------------------------------------------------------ */
+  // ------------------------------------------------------------
+  // Mount: ONE getSession call
+  // ------------------------------------------------------------
   useEffect(() => {
     let mounted = true;
 
@@ -78,28 +43,21 @@ export default function AuthProvider({ children }) {
 
     init();
 
-    /* ------------------------------------------------------------
-       Auth state listener — SAFE VERSION
-       ------------------------------------------------------------ */
+    // ------------------------------------------------------------
+    // Auth state listener
+    // ------------------------------------------------------------
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!mounted) return;
 
-        // Ignore only the password recovery event
-        // (prevents lock collision during password reset)
-        if (event === "PASSWORD_RECOVERY") {
-          return;
-        }
+        if (event === "PASSWORD_RECOVERY") return;
 
         if (event === "SIGNED_OUT") {
           setSession(null);
-          setProfile(null);
           setLoadingUser(false);
           return;
         }
 
-        // All other events (SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED, INITIAL_SESSION)
-        // must update the session — this fixes Cloudflare hydration.
         await handleSession(newSession);
         setLoadingUser(false);
       }
@@ -111,20 +69,11 @@ export default function AuthProvider({ children }) {
     };
   }, []);
 
-  /* ------------------------------------------------------------
-     Merged user
-     ------------------------------------------------------------ */
-  const mergedUser =
-    session?.user && profile
-      ? { ...session.user, ...profile }
-      : session?.user ?? null;
-
   return (
     <AuthContext.Provider
       value={{
         session,
-        user: mergedUser,
-        profile,
+        user: session?.user ?? null,
         loadingUser,
         signupEmail,
         setSignupEmail,

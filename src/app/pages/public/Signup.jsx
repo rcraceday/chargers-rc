@@ -249,23 +249,20 @@ export default function Signup() {
     const firstName = parts[0];
     const lastName = parts.length > 1 ? parts.slice(1).join(" ") : firstName;
 
-    const redirectUrl = `${window.location.origin}/${clubSlug}/public/login/`;
+    const redirectUrl = `${window.location.origin}/${clubSlug}/home`;
 
 const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
   email,
   password,
   options: {
-    emailRedirectTo: redirectUrl,
+    emailRedirectTo: `https://rcraceday.com/${club.slug}/public/login`,
     data: {
       full_name: name.trim(),
       first_name: firstName,
       last_name: lastName,
       club_id: clubId,
-
-      // ⭐ REQUIRED FOR EMAIL TEMPLATE ⭐
       club_name: club?.name,
       club_logo_url: club?.logo_url,
-
       ...(membership?.id ? { membership_id: membership.id } : {}),
     },
   },
@@ -440,8 +437,6 @@ const { data: signUpData, error } = await supabase.auth.signUp({
         club_id: clubId,
       });
     }
-
-    await supabase.auth.signOut();
 
     navigate(
       `/${clubSlug}/public/check-email?email=${encodeURIComponent(cleanEmail)}`

@@ -1,11 +1,12 @@
 // src/app/pages/profile/WelcomeAddDrivers.jsx
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 
 import { useMembership } from "@/app/providers/MembershipProvider";
 import { useProfile } from "@/app/providers/ProfileProvider";
+import { useDrivers } from "@/app/providers/DriverProvider";
 
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -26,6 +27,7 @@ export default function WelcomeAddDrivers() {
 
   const { membership, loadingMembership } = useMembership();
   const { user, loadingProfile } = useProfile();
+  const { refreshDrivers } = useDrivers();
 
   const brand = club?.theme?.hero?.backgroundColor || "#0A66C2";
 
@@ -36,93 +38,268 @@ export default function WelcomeAddDrivers() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const [clubMembers, setClubMembers] = useState([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+
   const capitalise = (str) =>
     str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
-  if (loadingProfile || loadingMembership) {
+  const membershipType = membership?.membership_type;
+  const membershipId = membership?.id;
+  const isNonMember = membershipType === "non_member";
+
+  const maxAdults = club?.max_adults ?? 0;
+  const maxJuniors = club?.max_juniors ?? 0;
+
+  // Load club_members for paid members
+  useEffect(() => {
+    if (isNonMember) return;
+    if (!membershipId) return;
+
+    const loadMembers = async () => {
+      setLoadingMembers(true);
+
+      const { data } = await supabase
+        .from("club_members")
+        .select("*")
+        .eq("membership_id", membershipId)
+        .order("created_at", { ascending: true });
+
+      if (data) setClubMembers(data);
+      setLoadingMembers(false);
+    };
+
+    loadMembers();
+  }, [membershipId, isNonMember]);
+
+  if (loadingProfile || loadingMembership || loadingMembers) {
     return <SimpleSpinner />;
   }
 
-  const handleAddDriver = async () => {
+  const adultCount = clubMembers.filter((m) => !m.is_junior).length;
+  const juniorCount = clubMembers.filter((m) => m.is_junior).length;
+
+  const reloadMembers = async () => {
+    if (isNonMember) return;
+    if (!membershipId) return;
+
+    const { data } = await supabase
+      .from("club_members")
+      .select("*")
+      .eq("membership_id", membershipId)
+      .order("created_at", { ascending: true });
+
+    if (data) setClubMembers(data);
+  };
+
+  const handleAddPerson = async () => {
     setSaving(true);
     setError("");
 
-    if (!membership) {
-      setError("No active membership found.");
+    try {
+      if (!user) {
+        setError("You must be logged in to add a driver.");
+        return;
+      }
+
+      const trimmedFirst = capitalise(firstName.trim());
+      const trimmedLast = capitalise(lastName.trim());
+
+      if (!trimmedFirst || !trimmedLast) {
+        setError("First and last name are required.");
+        return;
+      }
+
+      // ------------------------------------------------------------
+      // ⭐ NON-MEMBER FLOW — drivers only, no club_members
+      // ------------------------------------------------------------
+      if (isNonMember) {
+        const { data: existingDrivers } = await supabase
+          .from("drivers")
+          .select("id")
+          .eq("first_name", trimmedFirst)
+          .eq("last_name", trimmedLast)
+          .eq("club_id", club.id);
+
+        if (existingDrivers?.length > 0) {
+          setError(
+            "This driver name already exists in the ChargersRC system. LiveTime requires exact name matching."
+          );
+          return;
+        }
+
+        await supabase.from("drivers").insert({
+          membership_id: null,
+          club_id: club.id,
+          first_name: trimmedFirst,
+          last_name: trimmedLast,
+          is_junior: isJunior,
+          created_by: user.id,
+        });
+
+        refreshDrivers();
+        navigate(`/${clubSlug}/app/profile/drivers`);
+        return;
+      }
+
+      // ------------------------------------------------------------
+      // ⭐ PAID MEMBER FLOW — must insert into club_members
+      // ------------------------------------------------------------
+
+      if (!membershipId) {
+        setError("Your membership is not active. Cannot add drivers.");
+        return;
+      }
+
+      // Family membership limits
+      if (membershipType === "family") {
+        if (!isJunior && adultCount >= maxAdults) {
+          setError(
+            `Your club allows a maximum of ${maxAdults} adult members for a family membership.`
+          );
+          return;
+        }
+
+        if (isJunior && juniorCount >= maxJuniors) {
+          setError(
+            `Your club allows a maximum of ${maxJuniors} junior members for a family membership.`
+          );
+          return;
+        }
+      }
+
+      // Check if club_member already exists
+      const { data: existingMembers } = await supabase
+        .from("club_members")
+        .select("*")
+        .eq("membership_id", membershipId)
+        .eq("first_name", trimmedFirst)
+        .eq("last_name", trimmedLast);
+
+      let memberRow =
+        existingMembers && existingMembers.length > 0
+          ? existingMembers[0]
+          : null;
+
+      // Check if driver exists globally
+      const { data: existingDrivers } = await supabase
+        .from("drivers")
+        .select("id")
+        .eq("first_name", trimmedFirst)
+        .eq("last_name", trimmedLast)
+        .eq("club_id", club.id);
+
+      if (existingDrivers?.length > 0 && !memberRow?.driver_id) {
+        setError(
+          "This driver name already exists in the ChargersRC system. LiveTime requires exact name matching."
+        );
+        return;
+      }
+
+      let driver = null;
+
+      const createDriverIfNeeded = async () => {
+        if (memberRow?.driver_id) {
+          const { data: existingDriver } = await supabase
+            .from("drivers")
+            .select("*")
+            .eq("id", memberRow.driver_id)
+            .single();
+
+          if (existingDriver) return existingDriver;
+        }
+
+        const { data: newDriver, error: newDriverError } = await supabase
+          .from("drivers")
+          .insert({
+            membership_id: membershipId,
+            club_id: club.id,
+            first_name: trimmedFirst,
+            last_name: trimmedLast,
+            is_junior: isJunior,
+            created_by: user.id,
+          })
+          .select()
+          .single();
+
+        if (newDriverError) {
+          setError("There was a problem creating this driver. Please try again.");
+          return null;
+        }
+
+        await supabase.rpc("reconcile_driver_number", {
+          p_club_id: club.id,
+          p_driver_id: newDriver.id,
+          p_first_name: trimmedFirst,
+          p_last_name: trimmedLast,
+        });
+
+        return newDriver;
+      };
+
+      // Update or insert club_member
+      if (memberRow) {
+        if (memberRow.is_junior !== isJunior) {
+          await supabase
+            .from("club_members")
+            .update({ is_junior: isJunior })
+            .eq("id", memberRow.id);
+        }
+
+        driver = await createDriverIfNeeded();
+
+        if (driver && memberRow.driver_id !== driver.id) {
+          await supabase
+            .from("club_members")
+            .update({ driver_id: driver.id })
+            .eq("id", memberRow.id);
+        }
+      } else {
+        const { data: newMember, error: newMemberError } = await supabase
+          .from("club_members")
+          .insert({
+            membership_id: membershipId,
+            club_id: club.id,
+            first_name: trimmedFirst,
+            last_name: trimmedLast,
+            is_junior: isJunior,
+            slot_index: null,
+          })
+          .select()
+          .single();
+
+        if (newMemberError) {
+          setError("There was a problem adding this member. Please try again.");
+          return;
+        }
+
+        memberRow = newMember;
+
+        driver = await createDriverIfNeeded();
+
+        if (driver) {
+          await supabase
+            .from("club_members")
+            .update({ driver_id: driver.id })
+            .eq("id", memberRow.id);
+        }
+      }
+
+      refreshDrivers();
+      reloadMembers();
+
+      navigate(`/${clubSlug}/app/profile/drivers`);
+    } catch (err) {
+      console.error("[WelcomeAddDrivers] handleAddPerson error", err);
+      setError("Something went wrong while adding this driver. Please try again.");
+    } finally {
       setSaving(false);
-      return;
     }
-
-    if (!user) {
-      setError("You must be logged in to add a driver.");
-      setSaving(false);
-      return;
-    }
-
-    const trimmedFirst = capitalise(firstName.trim());
-    const trimmedLast = capitalise(lastName.trim());
-
-    if (!trimmedFirst || !trimmedLast) {
-      setError("First and last name are required.");
-      setSaving(false);
-      return;
-    }
-
-    const { data: existing, error: lookupError } = await supabase
-      .from("drivers")
-      .select("id")
-      .eq("first_name", trimmedFirst)
-      .eq("last_name", trimmedLast);
-
-    if (lookupError) {
-      setError("Error checking existing drivers.");
-      setSaving(false);
-      return;
-    }
-
-    if (existing && existing.length > 0) {
-      setError(
-        "This driver name already exists in the ChargersRC system. " +
-          "LiveTime requires unique First + Last names. " +
-          "If this driver has raced before, please check the exact spelling used previously. " +
-          "If the spelling differs in any way, LiveTime will create a new racer and previous results or seeding will not carry over."
-      );
-      setSaving(false);
-      return;
-    }
-
-    const { data: driver, error: insertError } = await supabase
-      .from("drivers")
-      .insert({
-        membership_id: membership.id,
-        club_id: club.id,
-        first_name: trimmedFirst,
-        last_name: trimmedLast,
-        is_junior: isJunior,
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      setError(insertError.message);
-      setSaving(false);
-      return;
-    }
-
-    await supabase.rpc("reconcile_driver_number", {
-      p_club_id: club.id,
-      p_driver_id: driver.id,
-      p_first_name: trimmedFirst,
-      p_last_name: trimmedLast,
-    });
-
-    navigate(`/${clubSlug}/app/profile/drivers`);
   };
 
   return (
     <div className="min-h-screen w-full bg-background text-text-base">
 
-      {/* HEADER — CENTERED, NO ICON */}
       <section className="w-full border-b border-surfaceBorder bg-surface">
         <div className="max-w-6xl mx-auto px-4 py-4 flex justify-center">
           <h1 className="text-xl font-semibold tracking-tight">
@@ -131,35 +308,35 @@ export default function WelcomeAddDrivers() {
         </div>
       </section>
 
-      {/* MAIN */}
       <main className="max-w-3xl mx-auto px-4 space-y-12 pb-10 flex flex-col">
 
-        {/* INTRO CARD */}
         <Card
           className="p-6 space-y-4"
           style={{ border: `2px solid ${brand}` }}
         >
-          <h2 className="text-lg font-semibold">Let’s Set Up Your Drivers</h2>
+          <h2 className="text-lg font-semibold">Add Drivers</h2>
 
           <p className="text-sm text-gray-700">
-            Every racer in your household needs a driver profile. Adults create a
-            profile for themselves. Parents create profiles for their junior racers.
-            Family memberships can add multiple drivers so everyone in the household
-            can race under one membership.
+            Add each driver who will be racing under your membership.  
+            Every driver needs a profile so the club can recognise them on race day and link their race history correctly.
           </p>
 
-          <p className="text-sm text-gray-700">
-            Creating a driver profile ensures nominations, race numbers, and results
-            are correctly linked to the right person.
-          </p>
+          <Card
+            className="p-4 space-y-3 bg-yellow-50"
+            style={{ border: `2px solid ${brand}` }}
+          >
+            <h3 className="text-md font-semibold">Important</h3>
 
-          <p className="text-sm text-gray-700">
-            Your driver’s name must match exactly as it appears in LiveTime —
-            spelling, spacing, and capitalisation included.
-          </p>
+            <p className="text-sm text-gray-700">
+              Your driver’s name must match <strong>exactly</strong> as it appears in LiveTime — spelling, spacing, and capitalisation included.
+            </p>
+
+            <p className="text-sm text-gray-700">
+              LiveTime treats any variation as a completely new racer. If the name does not match perfectly, previous race history, seeding, and results will not link correctly.
+            </p>
+          </Card>
         </Card>
 
-        {/* ⭐ FORM CARD — IDENTICAL STRUCTURE TO AddDriver.jsx */}
         <Card
           className="p-6 space-y-6"
           style={{ border: `2px solid ${brand}` }}
@@ -170,7 +347,6 @@ export default function WelcomeAddDrivers() {
             </div>
           )}
 
-          {/* ⭐ THIS WRAPPER IS THE KEY — SAME AS AddDriver */}
           <div className="space-y-4">
 
             <Input
@@ -193,11 +369,11 @@ export default function WelcomeAddDrivers() {
                 checked={isJunior}
                 onChange={(e) => setIsJunior(e.target.checked)}
               />
-              Junior Driver
+              Junior
             </label>
 
             <Button
-              onClick={handleAddDriver}
+              onClick={handleAddPerson}
               disabled={saving}
               className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
@@ -205,6 +381,32 @@ export default function WelcomeAddDrivers() {
             </Button>
           </div>
         </Card>
+
+        {membershipType === "family" && clubMembers.length > 0 && (
+          <Card
+            className="p-6 space-y-4"
+            style={{ border: `2px solid ${brand}` }}
+          >
+            <h3 className="text-md font-semibold">Household Members</h3>
+
+            <ul className="space-y-2">
+              {clubMembers.map((m) => (
+                <li key={m.id} className="text-sm">
+                  {m.first_name} {m.last_name}{" "}
+                  {m.is_junior ? "(Junior)" : "(Adult)"}{" "}
+                  {m.driver_id ? "– Driver" : ""}
+                </li>
+              ))}
+            </ul>
+
+            <Button
+              onClick={() => navigate(`/${clubSlug}/app/profile/drivers`)}
+              className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Save & Continue
+            </Button>
+          </Card>
+        )}
 
       </main>
     </div>

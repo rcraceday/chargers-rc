@@ -93,56 +93,138 @@ export default function ClubProvider({ children }) {
   }
 
   /* ------------------------------------------------------------
-     Membership linking logic
+     Ensure profile exists
      ------------------------------------------------------------ */
-  async function linkMembershipIfNeeded() {
-    if (!user || !club) return;
+  async function ensureProfile() {
+    if (!user?.id || !club) return null;
+
+    const { data: existingProfile, error: profileErr } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileErr) {
+      console.error("Profile lookup error:", profileErr);
+      return null;
+    }
+
+    if (existingProfile) return existingProfile;
+
+    const firstName = user.user_metadata?.first_name || "";
+    const lastName = user.user_metadata?.last_name || "";
+
+    const { data: newProfile, error: insertErr } = await supabase
+      .from("profiles")
+      .insert({
+        id: user.id,
+        email: user.email?.toLowerCase(),
+        first_name: firstName,
+        last_name: lastName,
+        club_id: club.id,
+      })
+      .select()
+      .single();
+
+    if (insertErr) {
+      console.error("Profile creation error:", insertErr);
+      return null;
+    }
+
+    return newProfile;
+  }
+
+  /* ------------------------------------------------------------
+     Ensure membership exists for this club
+     ------------------------------------------------------------ */
+  async function ensureMembership(profile) {
+    if (!user?.id || !club) return;
 
     const userEmail = user.email?.toLowerCase();
     if (!userEmail) return;
 
-    // 1️⃣ Find membership by email + club
-    const { data: membership, error: mErr } = await supabase
+    // 1️⃣ Look for membership already linked to this user
+    const { data: userMembership, error: userMembershipErr } = await supabase
+      .from("household_memberships")
+      .select("*")
+      .eq("club_id", club.id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (userMembershipErr) {
+      console.error("Membership lookup by user_id error:", userMembershipErr);
+      return;
+    }
+
+    if (userMembership) {
+      // Already linked — do nothing
+      return;
+    }
+
+    // 2️⃣ Look for unclaimed membership by email
+    const { data: emailMembership, error: emailMembershipErr } = await supabase
       .from("household_memberships")
       .select("*")
       .eq("club_id", club.id)
       .ilike("email", userEmail)
       .maybeSingle();
 
-    if (mErr) {
-      console.error("Membership lookup error:", mErr);
+    if (emailMembershipErr) {
+      console.error("Membership lookup by email error:", emailMembershipErr);
       return;
     }
 
-    if (!membership) {
-      // User is not a financial member — nothing to link
+    const firstName = profile?.first_name || user.user_metadata?.first_name || "";
+    const lastName = profile?.last_name || user.user_metadata?.last_name || "";
+
+    // 3️⃣ If unclaimed membership exists → link it
+    if (emailMembership && !emailMembership.user_id) {
+      const { error: linkErr } = await supabase
+        .from("household_memberships")
+        .update({
+          user_id: user.id,
+          primary_first_name: firstName,
+          primary_last_name: lastName,
+        })
+        .eq("id", emailMembership.id);
+
+      if (linkErr) {
+        console.error("Membership linking error:", linkErr);
+      }
+
       return;
     }
 
-    // 2️⃣ If already linked, nothing to do
-    if (membership.user_id === user.id) {
+    // 4️⃣ No membership exists → create new inactive non_member
+    if (!emailMembership) {
+      const { error: createErr } = await supabase
+        .from("household_memberships")
+        .insert({
+          club_id: club.id,
+          user_id: user.id,
+          email: userEmail,
+          membership_type: "non_member",
+          status: "inactive",
+          primary_first_name: firstName,
+          primary_last_name: lastName,
+        });
+
+      if (createErr) {
+        console.error("Membership creation error:", createErr);
+      }
+
       return;
     }
+  }
 
-    // 3️⃣ Link membership to user
-    const { error: updateErr } = await supabase
-      .from("household_memberships")
-      .update({
-        user_id: user.id,
-        primary_first_name:
-          user.user_metadata?.first_name || membership.primary_first_name,
-        primary_last_name:
-          user.user_metadata?.last_name || membership.primary_last_name,
-        status: "active",
-      })
-      .eq("id", membership.id);
+  /* ------------------------------------------------------------
+     Combined membership + profile logic
+     ------------------------------------------------------------ */
+  async function handleMembershipFlow() {
+    if (!user?.id || !club) return;
 
-    if (updateErr) {
-      console.error("Membership linking error:", updateErr);
-      return;
-    }
-
-    console.log("Membership linked successfully:", membership.id);
+    const profile = await ensureProfile();
+    await ensureMembership(profile);
   }
 
   /* ------------------------------------------------------------
@@ -154,11 +236,11 @@ export default function ClubProvider({ children }) {
   }, [clubSlug, loadingUser]);
 
   /* ------------------------------------------------------------
-     Link membership when both user + club are ready
+     Run membership flow when both user + club are ready
      ------------------------------------------------------------ */
   useEffect(() => {
     if (!loadingUser && !loadingClub && user && club) {
-      linkMembershipIfNeeded();
+      handleMembershipFlow();
     }
   }, [loadingUser, loadingClub, user, club]);
 
